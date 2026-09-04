@@ -8,7 +8,8 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/providers/auth_providers.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/home/presentation/home_shell.dart';
-import 'features/market/bozor_shell.dart';
+import 'features/bozorkom/bozorkom_shell.dart';
+import 'features/market/bozor_shell.dart' show BozorSetupScreen;
 
 // Faqat ishlab chiqish/vizual tekshiruv uchun: login'ni chetlab o'tib to'g'ridan
 // -to'g'ri qobiqni ko'rsatadi (--dart-define=DEBUG_HOME=true). Prod build'da
@@ -96,7 +97,9 @@ class _AibaPosAppState extends ConsumerState<AibaPosApp> {
               // BOZOR ilovasi: login'dan keyin 3 ekranli qobiq
               // (Zakaz / Bozor / Qabul) — kassa emas.
               : session != null
-                  ? const BozorShell()
+                  // BOZORKOM: eski Bozorkom ilovasi flow'i, AIBA UI —
+                  // Bozorkom (hamma filial) va filial menejeri bir xil ekran.
+                  ? const BozorkomShell()
                   // Birinchi o'rnatish: terminal sozlanmagan bo'lsa — setup
                   // (Sozlamalar). Save'dan keyin login'ga o'tadi.
                   : (configured
