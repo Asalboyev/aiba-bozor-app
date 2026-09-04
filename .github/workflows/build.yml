@@ -1,0 +1,39 @@
+name: Build APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: dart run build_runner build --delete-conflicting-outputs
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aiba-bozor-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+      # Doimiy «latest» Release — havola o'zgarmaydi:
+      # github.com/Asalboyev/aiba-bozor-app/releases/tag/latest
+      - name: Publish to "latest" release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: AIBA BOZOR — oxirgi build
+          body: |
+            Android planshet uchun `app-release.apk`ni yuklab o'rnating.
+            Bozorchi: 2 tab (Jamlangan / Filiallar). Menejer: o'z filialiga zakaz.
+          files: build/app/outputs/flutter-apk/app-release.apk
+          prerelease: false
