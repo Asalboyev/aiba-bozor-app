@@ -1,12 +1,11 @@
-// HUJJAT YARATISH / TAHRIRLASH — «Hisob-faktura/oldindan buyurtma yarating».
-// Yetkazib beruvchi doim Bozorkom (o'zgarmaydi). Qabul qiluvchi: Bozorkom
-// istalgan filialni tanlaydi, menejer faqat o'z filiali. Bozorkom narx ham
-// kiritadi (yuk xati), menejer faqat miqdor (oldindan buyurtma).
+// HUJJAT YARATISH / TAHRIRLASH. Yetkazib beruvchi doim Bozorkom. Qabul
+// qiluvchi: Bozorkom istalgan filial, menejer o'z filiali. Bozorkom narx ham
+// kiritadi (yuk xati), menejer faqat miqdor (oldindan buyurtma). Oq/qora tema,
+// tor telefonda hech narsa toshmaydi (sarlavha qatori Wrap).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/widgets/pos_chrome.dart';
 import '../auth/presentation/providers/auth_providers.dart';
 import 'i18n.dart';
 import 'models.dart';
@@ -18,7 +17,6 @@ class DocEditorScreen extends ConsumerStatefulWidget {
   const DocEditorScreen({super.key, required this.date, this.existing});
   final String date;
   final Doc? existing;
-
   @override
   ConsumerState<DocEditorScreen> createState() => _DocEditorScreenState();
 }
@@ -26,21 +24,14 @@ class DocEditorScreen extends ConsumerStatefulWidget {
 class _DocEditorScreenState extends ConsumerState<DocEditorScreen> {
   late String _date = widget.existing?.date ?? widget.date;
   late String _branchId = widget.existing?.branch.id ?? '';
-  late final List<_Row> _rows = [
-    for (final l in widget.existing?.lines ?? const <DocLine>[]) _Row.from(l),
-  ];
+  late final List<_Row> _rows = [for (final l in widget.existing?.lines ?? const <DocLine>[]) _Row.from(l)];
   bool _busy = false;
-
-  bool get _market => ref.read(sessionProvider)?.staff.role == 'market';
 
   @override
   void initState() {
     super.initState();
-    // Menejer — qabul qiluvchi doim o'z filiali.
     final s = ref.read(sessionProvider);
-    if (_branchId.isEmpty && (s?.staff.role != 'market')) {
-      _branchId = s?.restaurant.id ?? '';
-    }
+    if (_branchId.isEmpty && (s?.staff.role != 'market')) _branchId = s?.restaurant.id ?? '';
   }
 
   @override
@@ -55,16 +46,16 @@ class _DocEditorScreenState extends ConsumerState<DocEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = bz(context);
     final tr = ref.watch(trProvider);
     final loc = ref.watch(localeProvider);
     final session = ref.watch(sessionProvider);
     final market = session?.staff.role == 'market';
     final wide = isWide(context);
+    final pad = hPad(context);
     final branches = ref.watch(branchesProvider).valueOrNull ?? const <BranchRef>[];
     final own = BranchRef(
-        id: session?.restaurant.id ?? '',
-        name: session?.restaurant.name ?? '',
-        code: session?.restaurant.code ?? '');
+        id: session?.restaurant.id ?? '', name: session?.restaurant.name ?? '', code: session?.restaurant.code ?? '');
     final recOpts = <MapEntry<String, String>>[
       if (market) ...[
         for (final b in branches) MapEntry(b.id, b.name),
@@ -76,67 +67,51 @@ class _DocEditorScreenState extends ConsumerState<DocEditorScreen> {
     final editing = widget.existing != null;
 
     return Scaffold(
-      backgroundColor: PosColors.bg,
+      backgroundColor: c.bg,
       appBar: AppBar(
-        backgroundColor: PosColors.bg,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded), onPressed: () => Navigator.of(context).pop()),
-        title: Text(tr('createDoc'),
-            maxLines: 2,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w400, height: 1.2)),
+        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => Navigator.of(context).pop()),
+        title: FitText(tr('createDoc'), style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w400)),
       ),
       body: Column(children: [
         Expanded(
           child: ListView(
-            padding: EdgeInsets.symmetric(horizontal: wide ? 24 : 14, vertical: 8),
+            padding: EdgeInsets.symmetric(horizontal: pad, vertical: 8),
             children: [
               Row(children: [
                 Expanded(
-                  child: Text(editing ? tr('editInvoice') : tr('newInvoice'),
-                      style: const TextStyle(
-                          color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
+                  child: FitText(editing ? tr('editInvoice') : tr('newInvoice'),
+                      style: TextStyle(color: c.text, fontSize: 24, fontWeight: FontWeight.w800)),
                 ),
-                if (editing && widget.existing!.docNo != null)
+                if (editing && widget.existing!.docNo != null) ...[
+                  const SizedBox(width: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                        color: PosColors.blue.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(10)),
+                    decoration: BoxDecoration(color: c.blue.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(10)),
                     child: Text(widget.existing!.numberLabel,
-                        style: const TextStyle(
-                            color: PosColors.blue, fontSize: 18, fontWeight: FontWeight.w800)),
+                        style: TextStyle(color: c.blue, fontSize: 18, fontWeight: FontWeight.w800)),
                   ),
+                ],
               ]),
               const SizedBox(height: 14),
-              // Sarlavha maydonlari
               AibaCard(
-                color: PosColors.panel,
+                color: c.panel,
+                padding: const EdgeInsets.all(14),
                 child: Column(children: [
                   ChoicePill<int>(
-                    label: tr('supplier'),
-                    value: 1,
-                    options: [MapEntry(1, tr('market'))],
-                    onChanged: (_) {},
-                    enabled: false,
-                    icon: Icons.storefront_rounded,
+                    label: tr('supplier'), value: 1, options: [MapEntry(1, tr('market'))],
+                    onChanged: (_) {}, enabled: false, icon: Icons.storefront_rounded,
                   ),
                   const SizedBox(height: 12),
                   ChoicePill<String>(
-                    label: tr('recipient'),
-                    value: _branchId,
-                    options: recOpts,
-                    enabled: market && !editing,
-                    icon: Icons.location_on_rounded,
+                    label: tr('recipient'), value: _branchId, options: recOpts,
+                    enabled: market && !editing, icon: Icons.location_on_rounded,
                     onChanged: (v) => setState(() => _branchId = v),
                   ),
                   const SizedBox(height: 12),
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6, left: 2),
-                      child: Text(tr('date'),
-                          style: const TextStyle(color: PosColors.label, fontSize: 13)),
+                      child: Text(tr('date'), style: TextStyle(color: c.label, fontSize: 13)),
                     ),
                     Material(
                       color: Colors.transparent,
@@ -150,22 +125,17 @@ class _DocEditorScreenState extends ConsumerState<DocEditorScreen> {
                               },
                         child: Container(
                           height: 48,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
                           decoration: BoxDecoration(
-                            color: PosColors.field,
+                            color: c.field,
                             borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                                color: editing ? PosColors.cardBorder : PosColors.blue.withValues(alpha: 0.5)),
+                            border: Border.all(color: editing ? c.border : c.blue.withValues(alpha: 0.55)),
                           ),
                           child: Row(children: [
-                            Icon(Icons.calendar_today_rounded,
-                                size: 18, color: editing ? PosColors.muted : PosColors.blue),
+                            Icon(Icons.calendar_today_rounded, size: 18, color: editing ? c.muted : c.blue),
                             const SizedBox(width: 8),
                             Text(prettyDate(_date),
-                                style: TextStyle(
-                                    color: editing ? PosColors.muted : Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600)),
+                                style: TextStyle(color: editing ? c.muted : c.text, fontSize: 15, fontWeight: FontWeight.w600)),
                           ]),
                         ),
                       ),
@@ -173,50 +143,45 @@ class _DocEditorScreenState extends ConsumerState<DocEditorScreen> {
                   ]),
                 ]),
               ),
-              const SizedBox(height: 18),
-              // Ovqatlar sarlavhasi + qo'shish
-              Row(children: [
-                Text(tr('foods'),
-                    style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
-                const Spacer(),
-                SizedBox(
-                  height: 46,
-                  child: FilledButton.tonalIcon(
-                    onPressed: _addProducts,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: PosColors.blue.withValues(alpha: 0.16),
-                      foregroundColor: PosColors.blue,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              const SizedBox(height: 16),
+              // Sarlavha + qo'shish tugmasi — tor ekranda pastga tushadi, toshmaydi.
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                runSpacing: 8,
+                spacing: 8,
+                children: [
+                  Text(tr('foods'), style: TextStyle(color: c.text, fontSize: 22, fontWeight: FontWeight.w800)),
+                  SizedBox(
+                    height: 44,
+                    child: FilledButton.tonalIcon(
+                      onPressed: _addProducts,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: c.blue.withValues(alpha: 0.14),
+                        foregroundColor: c.blue,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      icon: const Icon(Icons.add_rounded),
+                      label: Text(tr('addProduct'), style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700)),
                     ),
-                    icon: const Icon(Icons.add_rounded),
-                    label: Text(tr('addProduct'),
-                        style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700)),
                   ),
-                ),
-              ]),
+                ],
+              ),
               const SizedBox(height: 10),
               if (_rows.isEmpty)
-                AibaCard(
-                  child: SizedBox(
-                    height: 160,
-                    child: EmptyState(icon: Icons.shopping_basket_outlined, title: tr('needLines')),
-                  ),
-                )
+                AibaCard(child: SizedBox(height: 150, child: EmptyState(icon: Icons.shopping_basket_outlined, title: tr('needLines'))))
               else
                 AibaCard(
                   padding: EdgeInsets.zero,
                   child: Column(children: [
                     for (var i = 0; i < _rows.length; i++) ...[
                       _LineEditor(
-                        row: _rows[i],
-                        market: market,
-                        tr: tr,
-                        wide: wide,
+                        row: _rows[i], market: market, tr: tr, wide: wide,
                         onChanged: () => setState(() {}),
                         onDelete: () => setState(() => _rows.removeAt(i).dispose()),
                       ),
-                      if (i < _rows.length - 1)
-                        const Divider(height: 1, color: PosColors.cardBorder),
+                      if (i < _rows.length - 1) Divider(height: 1, color: c.border),
                     ],
                   ]),
                 ),
@@ -224,34 +189,30 @@ class _DocEditorScreenState extends ConsumerState<DocEditorScreen> {
             ],
           ),
         ),
-        // Pastki: JAMI + Saqlash
         SafeArea(
           top: false,
           child: Padding(
-            padding: EdgeInsets.fromLTRB(wide ? 24 : 14, 8, wide ? 24 : 14, 12),
+            padding: EdgeInsets.fromLTRB(pad, 8, pad, 12),
             child: Column(children: [
-              if (market)
+              if (market) ...[
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                      color: PosColors.blue.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(14)),
+                  decoration: BoxDecoration(color: c.blue.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
                   child: Row(children: [
-                    Text(tr('totalUpper'),
-                        style: const TextStyle(color: PosColors.label, fontSize: 14)),
-                    const Spacer(),
-                    Text('${fmtSum(_total)} ${tr('cur')}',
-                        style: const TextStyle(
-                            color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
+                    Text(tr('totalUpper'), style: TextStyle(color: c.label, fontSize: 14)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FitText('${fmtSum(_total)} ${tr('cur')}',
+                          align: Alignment.centerRight,
+                          style: TextStyle(color: c.text, fontSize: 24, fontWeight: FontWeight.w800)),
+                    ),
                   ]),
                 ),
-              if (market) const SizedBox(height: 10),
+                const SizedBox(height: 10),
+              ],
               PrimaryBtn(
-                label: tr('save'),
-                icon: Icons.save_rounded,
-                busy: _busy,
-                enabled: _rows.isNotEmpty && _branchId.isNotEmpty,
-                onTap: _save,
+                label: tr('save'), icon: Icons.save_rounded, busy: _busy,
+                enabled: _rows.isNotEmpty && _branchId.isNotEmpty, onTap: _save,
               ),
             ]),
           ),
@@ -261,20 +222,14 @@ class _DocEditorScreenState extends ConsumerState<DocEditorScreen> {
   }
 
   Future<void> _addProducts() async {
-    final picked = await Navigator.of(context).push<List<CatalogItem>>(
-      MaterialPageRoute(builder: (_) => const ProductPickerScreen()),
-    );
+    final market = ref.read(sessionProvider)?.staff.role == 'market';
+    final picked = await Navigator.of(context)
+        .push<List<CatalogItem>>(MaterialPageRoute(builder: (_) => const ProductPickerScreen()));
     if (picked == null || picked.isEmpty) return;
     setState(() {
       for (final it in picked) {
-        final exists = _rows.any((r) => r.name.toLowerCase() == it.name.toLowerCase());
-        if (exists) continue;
-        _rows.add(_Row(
-          name: it.name,
-          unit: it.unit,
-          qty: 1,
-          price: _market && it.price > 0 ? it.price : null,
-        ));
+        if (_rows.any((r) => r.name.toLowerCase() == it.name.toLowerCase())) continue;
+        _rows.add(_Row(name: it.name, unit: it.unit, qty: 1, price: market && it.price > 0 ? it.price : null));
       }
     });
   }
@@ -282,14 +237,8 @@ class _DocEditorScreenState extends ConsumerState<DocEditorScreen> {
   Future<void> _save() async {
     final tr = ref.read(trProvider);
     final lines = _rows.where((r) => r.qty > 0).map((r) => r.toLine()).toList();
-    if (lines.isEmpty) {
-      toast(context, tr('needLines'), error: true);
-      return;
-    }
-    if (_branchId.isEmpty) {
-      toast(context, tr('needRecipient'), error: true);
-      return;
-    }
+    if (lines.isEmpty) return toast(context, tr('needLines'), error: true);
+    if (_branchId.isEmpty) return toast(context, tr('needRecipient'), error: true);
     setState(() => _busy = true);
     try {
       await ref.read(bozorkomRepoProvider).save(date: _date, branchId: _branchId, lines: lines);
@@ -304,28 +253,23 @@ class _DocEditorScreenState extends ConsumerState<DocEditorScreen> {
   }
 }
 
-/// Tahrirlanadigan qator (controller'lar bilan).
 class _Row {
   _Row({required this.name, required this.unit, required double qty, double? price, this.id = '', this.itemId})
       : qtyCtl = TextEditingController(text: fmtQty(qty)),
         priceCtl = TextEditingController(text: price == null || price == 0 ? '' : fmtSum(price));
-  factory _Row.from(DocLine l) =>
-      _Row(name: l.name, unit: l.unit, qty: l.qty, price: l.price, id: l.id, itemId: l.itemId);
-
+  factory _Row.from(DocLine l) => _Row(name: l.name, unit: l.unit, qty: l.qty, price: l.price, id: l.id, itemId: l.itemId);
   final String id;
   final String? itemId;
   final String name;
   final String unit;
   final TextEditingController qtyCtl;
   final TextEditingController priceCtl;
-
   double get qty => double.tryParse(qtyCtl.text.replaceAll(',', '.').replaceAll(' ', '')) ?? 0;
   double? get price {
     final v = double.tryParse(priceCtl.text.replaceAll(',', '.').replaceAll(' ', ''));
     return (v == null || v <= 0) ? null : v;
   }
   double get total => (price ?? 0) * qty;
-
   DocLine toLine() => DocLine(id: id, itemId: itemId, name: name, unit: unit, qty: qty, price: price);
   void dispose() {
     qtyCtl.dispose();
@@ -334,14 +278,7 @@ class _Row {
 }
 
 class _LineEditor extends StatelessWidget {
-  const _LineEditor({
-    required this.row,
-    required this.market,
-    required this.tr,
-    required this.wide,
-    required this.onChanged,
-    required this.onDelete,
-  });
+  const _LineEditor({required this.row, required this.market, required this.tr, required this.wide, required this.onChanged, required this.onDelete});
   final _Row row;
   final bool market;
   final Tr tr;
@@ -351,25 +288,17 @@ class _LineEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = bz(context);
     final qty = SizedBox(
       width: wide ? 130 : 110,
       child: AibaField(controller: row.qtyCtl, label: tr('qty'), numeric: true, suffix: row.unit, onChanged: (_) => onChanged()),
     );
     final price = market
-        ? SizedBox(
-            width: wide ? 150 : 130,
-            child: AibaField(controller: row.priceCtl, label: tr('price'), numeric: true, onChanged: (_) => onChanged()),
-          )
+        ? SizedBox(width: wide ? 150 : 130, child: AibaField(controller: row.priceCtl, label: tr('price'), numeric: true, onChanged: (_) => onChanged()))
         : null;
-    final del = IconButton(
-      onPressed: onDelete,
-      icon: const Icon(Icons.delete_outline_rounded, color: PosColors.red),
-      tooltip: tr('delete'),
-    );
-    final name = Text(row.name,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700));
+    final del = IconButton(onPressed: onDelete, icon: Icon(Icons.delete_outline_rounded, color: c.red), tooltip: tr('delete'));
+    final name = Text(row.name, maxLines: 2, overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: c.text, fontSize: 16, fontWeight: FontWeight.w700));
 
     if (wide) {
       return Padding(
@@ -384,9 +313,8 @@ class _LineEditor extends StatelessWidget {
             SizedBox(
               width: 120,
               child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Text(tr('total'), style: const TextStyle(color: PosColors.label, fontSize: 12)),
-                Text(fmtSum(row.total),
-                    style: const TextStyle(color: PosColors.blue, fontSize: 17, fontWeight: FontWeight.w800)),
+                Text(tr('total'), style: TextStyle(color: c.label, fontSize: 12)),
+                Text(fmtSum(row.total), style: TextStyle(color: c.blue, fontSize: 17, fontWeight: FontWeight.w800)),
               ]),
             ),
           ],
@@ -394,7 +322,6 @@ class _LineEditor extends StatelessWidget {
         ]),
       );
     }
-    // Telefon: nom + o'chirish, pastda miqdor / narx / jami
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 10, 6, 12),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -408,9 +335,8 @@ class _LineEditor extends StatelessWidget {
           const SizedBox(height: 8),
           Row(children: [
             const Spacer(),
-            Text('${tr('total')}  ', style: const TextStyle(color: PosColors.label, fontSize: 13)),
-            Text(fmtSum(row.total),
-                style: const TextStyle(color: PosColors.blue, fontSize: 18, fontWeight: FontWeight.w800)),
+            Text('${tr('total')}  ', style: TextStyle(color: c.label, fontSize: 13)),
+            Text(fmtSum(row.total), style: TextStyle(color: c.blue, fontSize: 18, fontWeight: FontWeight.w800)),
             const SizedBox(width: 8),
           ]),
         ],

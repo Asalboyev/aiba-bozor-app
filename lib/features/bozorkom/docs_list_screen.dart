@@ -1,11 +1,10 @@
-// YUK XATLARI VA OLDINDAN BUYURTMALAR — asosiy ro'yxat (eski Bozorkom
-// «Yuk tushirish varog'i»). Sana + Filtr paneli + «Yangi yuk xati qo'shish»
-// + hujjat kartalari. Telefonda bitta ustun, planshetda ikkita.
+// YUK XATLARI VA OLDINDAN BUYURTMALAR — asosiy ro'yxat.
+// Sana + Filtr paneli + «Yangi yuk xati qo'shish» + kartalar.
+// Telefon: bitta ustun; planshet: 2–3 ustun (Wrap). Oq/qora tema.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/widgets/pos_chrome.dart';
 import '../auth/presentation/providers/auth_providers.dart';
 import 'doc_detail_screen.dart';
 import 'doc_editor_screen.dart';
@@ -25,47 +24,41 @@ class DocsListBody extends ConsumerStatefulWidget {
 
 class _DocsListBodyState extends ConsumerState<DocsListBody> {
   bool _filterOpen = false;
-  String _recipient = ''; // '' = hammasi
+  String _recipient = '';
   _Acc _acc = _Acc.all;
   _Kind _kind = _Kind.all;
 
   @override
   Widget build(BuildContext context) {
+    final c = bz(context);
     final tr = ref.watch(trProvider);
     final loc = ref.watch(localeProvider);
     final date = ref.watch(docDateProvider);
     final docs = ref.watch(docsProvider);
-    final compact = ref.watch(compactProvider);
     final session = ref.watch(sessionProvider);
     final market = session?.staff.role == 'market';
     final own = BranchRef(
-        id: session?.restaurant.id ?? '',
-        name: session?.restaurant.name ?? '',
-        code: session?.restaurant.code ?? '');
+        id: session?.restaurant.id ?? '', name: session?.restaurant.name ?? '', code: session?.restaurant.code ?? '');
     final wide = isWide(context);
+    final narrow = isNarrow(context);
+    final pad = hPad(context);
     final branches = ref.watch(branchesProvider).valueOrNull ?? const <BranchRef>[];
 
     return RefreshIndicator(
-      color: PosColors.blue,
+      color: c.blue,
       onRefresh: () async => ref.refresh(docsProvider.future),
       child: ListView(
-        padding: EdgeInsets.symmetric(horizontal: wide ? 24 : 14, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: pad, vertical: 12),
         children: [
-          // Sarlavha
           Padding(
-            padding: const EdgeInsets.fromLTRB(4, 4, 4, 14),
+            padding: const EdgeInsets.fromLTRB(4, 2, 4, 12),
             child: Text(tr('docs'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: wide ? 26 : 22,
-                    fontWeight: FontWeight.w800,
-                    height: 1.15)),
+                style: TextStyle(color: c.text, fontSize: wide ? 26 : (narrow ? 20 : 22), fontWeight: FontWeight.w800, height: 1.15)),
           ),
-          // Sana + Filtr paneli
           AibaCard(
-            color: PosColors.panel,
-            padding: const EdgeInsets.all(12),
+            color: c.panel,
+            padding: const EdgeInsets.all(10),
             child: Column(children: [
               Row(children: [
                 Expanded(
@@ -78,7 +71,7 @@ class _DocsListBodyState extends ConsumerState<DocsListBody> {
                     },
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: _PillBtn(
                     icon: Icons.tune_rounded,
@@ -88,72 +81,49 @@ class _DocsListBodyState extends ConsumerState<DocsListBody> {
                   ),
                 ),
               ]),
-              if (_filterOpen) ...[
-                const SizedBox(height: 14),
-                _filters(tr, market, own, branches, wide),
-              ],
+              if (_filterOpen) ...[const SizedBox(height: 12), _filters(tr, market, own, branches, wide)],
             ]),
           ),
           const SizedBox(height: 12),
-          // Yangi hujjat
           PrimaryBtn(
             label: tr('newDoc'),
             icon: Icons.add_rounded,
             height: 54,
             onTap: () async {
-              final ok = await Navigator.of(context).push<bool>(MaterialPageRoute(
-                builder: (_) => DocEditorScreen(date: date),
-              ));
+              final ok = await Navigator.of(context)
+                  .push<bool>(MaterialPageRoute(builder: (_) => DocEditorScreen(date: date)));
               if (ok == true) ref.invalidate(docsProvider);
             },
           ),
           const SizedBox(height: 14),
-          // Ro'yxat
           docs.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.all(40),
-              child: Center(child: CircularProgressIndicator(color: PosColors.blue)),
-            ),
-            error: (e, _) => EmptyState(
-              icon: Icons.cloud_off_rounded,
-              title: BozorkomRepo.errText(e, tr('errNet')),
-            ),
+            loading: () => Padding(
+                padding: const EdgeInsets.all(40), child: Center(child: CircularProgressIndicator(color: c.blue))),
+            error: (e, _) => EmptyState(icon: Icons.cloud_off_rounded, title: BozorkomRepo.errText(e, tr('errNet'))),
             data: (list) {
               final shown = _apply(list);
               if (shown.isEmpty) {
-                return EmptyState(
-                    icon: Icons.inventory_2_outlined, title: tr('empty'), note: tr('emptyNote'));
+                return EmptyState(icon: Icons.inventory_2_outlined, title: tr('empty'), note: tr('emptyNote'));
               }
               final cards = [
                 for (final d in shown)
                   _DocCard(
                     doc: d,
                     tr: tr,
-                    compact: compact,
                     onTap: () async {
-                      await Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => DocDetailScreen(doc: d),
-                      ));
+                      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => DocDetailScreen(doc: d)));
                       ref.invalidate(docsProvider);
                     },
                   ),
               ];
-              if (wide && !compact) {
-                // Planshet: 2–3 ustun. Karta o'z balandligini oladi (Wrap) —
-                // uzun filial nomi yoki 2 qatorli matn hech qachon toshmaydi.
+              if (wide) {
                 final w = MediaQuery.sizeOf(context).width;
                 final cols = w >= 1100 ? 3 : 2;
                 const gap = 12.0;
-                final colW = (w - 24 * 2 - gap * (cols - 1)) / cols;
-                return Wrap(
-                  spacing: gap,
-                  runSpacing: gap,
-                  children: [for (final c in cards) SizedBox(width: colW, child: c)],
-                );
+                final colW = (w - pad * 2 - gap * (cols - 1)) / cols;
+                return Wrap(spacing: gap, runSpacing: gap, children: [for (final k in cards) SizedBox(width: colW, child: k)]);
               }
-              return Column(children: [
-                for (final c in cards) Padding(padding: const EdgeInsets.only(bottom: 12), child: c),
-              ]);
+              return Column(children: [for (final k in cards) Padding(padding: const EdgeInsets.only(bottom: 12), child: k)]);
             },
           ),
           const SizedBox(height: 24),
@@ -164,24 +134,19 @@ class _DocsListBodyState extends ConsumerState<DocsListBody> {
 
   bool get _hasFilter => _recipient.isNotEmpty || _acc != _Acc.all || _kind != _Kind.all;
 
-  List<Doc> _apply(List<Doc> list) {
-    return list.where((d) {
-      if (_recipient.isNotEmpty && d.branch.id != _recipient) return false;
-      if (_acc == _Acc.yes && !d.isAccepted) return false;
-      if (_acc == _Acc.no && d.isAccepted) return false;
-      if (_kind == _Kind.invoice && d.kind != DocKind.invoice) return false;
-      if (_kind == _Kind.preorder && d.kind != DocKind.preorder) return false;
-      return true;
-    }).toList();
-  }
+  List<Doc> _apply(List<Doc> list) => list.where((d) {
+        if (_recipient.isNotEmpty && d.branch.id != _recipient) return false;
+        if (_acc == _Acc.yes && !d.isAccepted) return false;
+        if (_acc == _Acc.no && d.isAccepted) return false;
+        if (_kind == _Kind.invoice && d.kind != DocKind.invoice) return false;
+        if (_kind == _Kind.preorder && d.kind != DocKind.preorder) return false;
+        return true;
+      }).toList();
 
   Widget _filters(Tr tr, bool market, BranchRef own, List<BranchRef> branches, bool wide) {
     final recOpts = <MapEntry<String, String>>[
       MapEntry('', tr('all')),
-      if (market)
-        for (final b in branches) MapEntry(b.id, b.name)
-      else
-        MapEntry(own.id, own.name),
+      if (market) for (final b in branches) MapEntry(b.id, b.name) else MapEntry(own.id, own.name),
     ];
     final recipient = ChoicePill<String>(
       label: tr('recipient'),
@@ -189,30 +154,17 @@ class _DocsListBodyState extends ConsumerState<DocsListBody> {
       options: recOpts,
       onChanged: (v) => setState(() => _recipient = v),
     );
-    final supplier = ChoicePill<int>(
-      label: tr('supplier'),
-      value: 1,
-      options: [MapEntry(1, tr('market'))],
-      onChanged: (_) {},
-    );
+    final supplier = ChoicePill<int>(label: tr('supplier'), value: 1, options: [MapEntry(1, tr('market'))], onChanged: (_) {});
     final acc = ChoicePill<_Acc>(
       label: tr('accepted'),
       value: _acc,
-      options: [
-        MapEntry(_Acc.all, tr('all')),
-        MapEntry(_Acc.yes, tr('accepted')),
-        MapEntry(_Acc.no, tr('notAccepted')),
-      ],
+      options: [MapEntry(_Acc.all, tr('all')), MapEntry(_Acc.yes, tr('accepted')), MapEntry(_Acc.no, tr('notAccepted'))],
       onChanged: (v) => setState(() => _acc = v),
     );
     final kind = ChoicePill<_Kind>(
       label: tr('type'),
       value: _kind,
-      options: [
-        MapEntry(_Kind.all, tr('all')),
-        MapEntry(_Kind.invoice, tr('invoice')),
-        MapEntry(_Kind.preorder, tr('preorder')),
-      ],
+      options: [MapEntry(_Kind.all, tr('all')), MapEntry(_Kind.invoice, tr('invoice')), MapEntry(_Kind.preorder, tr('preorder'))],
       onChanged: (v) => setState(() => _kind = v),
     );
     if (wide) {
@@ -227,7 +179,7 @@ class _DocsListBodyState extends ConsumerState<DocsListBody> {
       const SizedBox(height: 12),
       supplier,
       const SizedBox(height: 12),
-      Row(children: [Expanded(child: acc), const SizedBox(width: 12), Expanded(child: kind)]),
+      Row(children: [Expanded(child: acc), const SizedBox(width: 10), Expanded(child: kind)]),
     ]);
   }
 }
@@ -239,96 +191,80 @@ class _PillBtn extends StatelessWidget {
   final VoidCallback onTap;
   final bool active;
   @override
-  Widget build(BuildContext context) => Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(999),
-          onTap: onTap,
-          child: Container(
-            height: 48,
-            decoration: BoxDecoration(
-              color: active ? PosColors.blue.withValues(alpha: 0.16) : PosColors.field,
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: PosColors.blue.withValues(alpha: active ? 0.9 : 0.5)),
-            ),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(icon, size: 18, color: PosColors.blue),
-              const SizedBox(width: 8),
-              Text(label,
-                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
-            ]),
+  Widget build(BuildContext context) {
+    final c = bz(context);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: active ? c.blue.withValues(alpha: 0.14) : c.field,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: c.blue.withValues(alpha: active ? 0.9 : 0.5)),
           ),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(icon, size: 18, color: c.blue),
+            const SizedBox(width: 6),
+            Flexible(child: FitText(label, style: TextStyle(color: c.text, fontSize: 15, fontWeight: FontWeight.w700))),
+          ]),
         ),
-      );
+      ),
+    );
+  }
 }
 
-/// Hujjat kartasi — №, sana • muallif, jami, yetkazib beruvchi/qabul qiluvchi,
-/// tur va holat belgilari.
 class _DocCard extends StatelessWidget {
-  const _DocCard({required this.doc, required this.tr, required this.onTap, this.compact = false});
+  const _DocCard({required this.doc, required this.tr, required this.onTap});
   final Doc doc;
   final Tr tr;
   final VoidCallback onTap;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final c = bz(context);
+    final narrow = isNarrow(context);
     final invoice = doc.kind == DocKind.invoice;
     final acc = doc.isAccepted;
     return AibaCard(
       onTap: onTap,
-      accent: acc ? PosColors.green : (invoice ? PosColors.blue : const Color(0xFFD97706)),
-      padding: EdgeInsets.all(compact ? 12 : 16),
+      accent: acc ? c.green : (invoice ? c.blue : c.amber),
+      padding: EdgeInsets.all(narrow ? 12 : 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(doc.numberLabel,
-                  style: TextStyle(
-                      color: Colors.white, fontSize: compact ? 18 : 22, fontWeight: FontWeight.w800)),
+              Text(doc.numberLabel, style: TextStyle(color: c.text, fontSize: narrow ? 19 : 22, fontWeight: FontWeight.w800)),
               const SizedBox(height: 2),
-              Text(
-                '${prettyDate(doc.date)}${(doc.createdBy ?? '').isNotEmpty ? ' • ${doc.createdBy}' : ''}',
-                style: const TextStyle(color: PosColors.muted, fontSize: 13),
-              ),
+              Text('${prettyDate(doc.date)}${(doc.createdBy ?? '').isNotEmpty ? ' • ${doc.createdBy}' : ''}',
+                  style: TextStyle(color: c.muted, fontSize: 13)),
             ]),
           ),
           const SizedBox(width: 8),
-          Text('${fmtSum(doc.sum)} ${tr('cur')}',
-              style: TextStyle(
-                  color: PosColors.blue, fontSize: compact ? 17 : 21, fontWeight: FontWeight.w800)),
-        ]),
-        SizedBox(height: compact ? 8 : 12),
-        Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('${tr('supplier')}: ${tr('market')}',
-                  style: const TextStyle(color: PosColors.label, fontSize: 13)),
-              const SizedBox(height: 2),
-              Text('${tr('recipient')}: ${doc.branch.name}',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
-            ]),
-          ),
-          const SizedBox(width: 8),
-          Pill(
-            label: invoice ? tr('invoice') : tr('preorder'),
-            color: invoice ? PosColors.blue : const Color(0xFFD97706),
-            small: compact,
+          Flexible(
+            child: FitText('${fmtSum(doc.sum)} ${tr('cur')}',
+                align: Alignment.centerRight,
+                style: TextStyle(color: c.blue, fontSize: narrow ? 18 : 21, fontWeight: FontWeight.w800)),
           ),
         ]),
-        SizedBox(height: compact ? 8 : 12),
-        Row(children: [
+        const SizedBox(height: 10),
+        Text('${tr('supplier')}: ${tr('market')}', style: TextStyle(color: c.label, fontSize: 13)),
+        const SizedBox(height: 2),
+        Text('${tr('recipient')}: ${doc.branch.name}',
+            maxLines: 2, overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: c.text, fontSize: 15, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 10),
+        Wrap(spacing: 8, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
           Pill(
             label: acc ? tr('yes') : tr('notAccepted'),
-            color: acc ? PosColors.green : const Color(0xFFE8863A),
+            color: acc ? c.green : c.orange,
             icon: acc ? Icons.check_circle_rounded : Icons.radio_button_checked_rounded,
-            small: compact,
           ),
-          const Spacer(),
-          Text(tr('lines', {'n': '${doc.linesCount}'}),
-              style: const TextStyle(color: PosColors.muted, fontSize: 12.5)),
+          Pill(label: invoice ? tr('invoice') : tr('preorder'), color: invoice ? c.blue : c.amber),
+          Text(tr('lines', {'n': '${doc.linesCount}'}), style: TextStyle(color: c.muted, fontSize: 12.5)),
         ]),
       ]),
     );

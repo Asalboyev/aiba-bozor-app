@@ -1,6 +1,7 @@
-// BOZORKOM EKRANLARI — telefon/planshet, Bozorkom/menejer, uz/ru/en
-// rasmlari. `flutter test test/bozorkom_shots_test.dart --update-goldens`
-// → test/shots/bk_*.png. Server yo'q: Dio soxta, javoblar shu faylda.
+// BOZORKOM EKRANLARI — telefon (390 / tor 360) / planshet (landshaft, portret),
+// OQ va QORA tema, Bozorkom/menejer, uz/ru/en. Server yo'q: Dio soxta.
+//   FLUTTER_MATERIAL_FONTS=<flutter>/bin/cache/artifacts/material_fonts \
+//   flutter test test/bozorkom_shots_test.dart --update-goldens   → test/shots/bk_*.png
 
 import 'dart:io';
 
@@ -15,7 +16,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:aiba_pos_terminal/core/config/app_config.dart';
 import 'package:aiba_pos_terminal/core/network/dio_client.dart';
 import 'package:aiba_pos_terminal/core/providers/core_providers.dart';
-import 'package:aiba_pos_terminal/core/theme/app_theme.dart';
 import 'package:aiba_pos_terminal/features/auth/domain/entities/auth_session.dart';
 import 'package:aiba_pos_terminal/features/auth/domain/repositories/auth_repository.dart';
 import 'package:aiba_pos_terminal/features/auth/presentation/providers/auth_providers.dart';
@@ -25,8 +25,8 @@ import 'package:aiba_pos_terminal/features/bozorkom/doc_editor_screen.dart';
 import 'package:aiba_pos_terminal/features/bozorkom/i18n.dart';
 import 'package:aiba_pos_terminal/features/bozorkom/models.dart';
 import 'package:aiba_pos_terminal/features/bozorkom/product_picker_screen.dart';
-import 'package:aiba_pos_terminal/features/bozorkom/repo.dart';
 import 'package:aiba_pos_terminal/features/bozorkom/settings_screens.dart';
+import 'package:aiba_pos_terminal/features/bozorkom/theme.dart';
 
 // ── Soxta server javoblari ──────────────────────────────────────────────────
 
@@ -60,7 +60,7 @@ const _branches = {
      'created_by': 'Bozorkom', 'total': 20, 'pending': 0, 'bought': 0, 'accepted': 20, 'sum': 1125640},
     {'restaurant_id': 'r9', 'name': 'Цех 16', 'code': 'C16', 'doc_no': 1477,
      'created_by': 'Azamat', 'total': 12, 'pending': 4, 'bought': 8, 'accepted': 0, 'sum': 2348000},
-    {'restaurant_id': 'r5', 'name': 'Бистро Себзор', 'code': 'SB', 'doc_no': 1483,
+    {'restaurant_id': 'r5', 'name': 'MCHJ XABIBA BONU SAVDO — Себзор', 'code': 'SB', 'doc_no': 1483,
      'created_by': 'Bozorkom', 'total': 11, 'pending': 0, 'bought': 11, 'accepted': 0, 'sum': 1497580},
   ],
 };
@@ -69,16 +69,8 @@ const _branchDetail = {
   'restaurant_id': 'r2', 'restaurant': 'Диет Бистро Чилонзор', 'date': '2026-09-04',
   'id': 'req1', 'doc_no': 1487, 'created_by': 'Bozorkom', 'lines': _lines,
 };
-
-const _my = {
-  'exists': true, 'id': 'req9', 'doc_no': 1479, 'date': '2026-09-04',
-  'status': 'submitted', 'created_by': 'Bozorkom', 'lines': _lines,
-};
-
-const _myPre = {
-  'exists': true, 'id': 'req8', 'doc_no': 1478, 'date': '2026-09-04',
-  'status': 'submitted', 'created_by': 'Kamol', 'lines': _preLines,
-};
+const _my = {'exists': true, 'id': 'req9', 'doc_no': 1479, 'date': '2026-09-04', 'status': 'submitted', 'created_by': 'Bozorkom', 'lines': _lines};
+const _myPre = {'exists': true, 'id': 'req8', 'doc_no': 1478, 'date': '2026-09-04', 'status': 'submitted', 'created_by': 'Kamol', 'lines': _preLines};
 
 const _restaurants = {
   'items': [
@@ -114,19 +106,12 @@ const _items = {
 };
 
 class _FakeDio extends DioClient {
-  _FakeDio(super.config, {this.manager = false, this.preorder = false});
-  final bool manager;
+  _FakeDio(super.config, {this.preorder = false});
   final bool preorder;
-
-  Response<T> _ok<T>(String path, Object body) => Response<T>(
-        requestOptions: RequestOptions(path: path),
-        statusCode: 200,
-        data: body as T,
-      );
-
+  Response<T> _ok<T>(String path, Object body) =>
+      Response<T>(requestOptions: RequestOptions(path: path), statusCode: 200, data: body as T);
   @override
-  Future<Response<T>> get<T>(String path,
-      {Map<String, dynamic>? query, bool noAuth = false, bool noLogout = false}) async {
+  Future<Response<T>> get<T>(String path, {Map<String, dynamic>? query, bool noAuth = false, bool noLogout = false}) async {
     if (path.endsWith('market/branches')) return _ok<T>(path, _branches);
     if (path.endsWith('market/branch')) return _ok<T>(path, _branchDetail);
     if (path.endsWith('market/my')) return _ok<T>(path, preorder ? _myPre : _my);
@@ -134,10 +119,8 @@ class _FakeDio extends DioClient {
     if (path.endsWith('market/restaurants')) return _ok<T>(path, _restaurants);
     return _ok<T>(path, const <String, dynamic>{});
   }
-
   @override
-  Future<Response<T>> post<T>(String path,
-      {Object? data, bool noAuth = false, bool noLogout = false}) async =>
+  Future<Response<T>> post<T>(String path, {Object? data, bool noAuth = false, bool noLogout = false}) async =>
       _ok<T>(path, const <String, dynamic>{'ok': true});
 }
 
@@ -148,43 +131,32 @@ class _FakeRepo implements AuthRepository {
 
 AuthSession _session(String role, String name) => AuthSession(
       accessToken: 'x',
-      restaurant: const RestaurantInfo(id: 'r2', name: 'Диет Бистро Чилонзор', code: 'CH'),
-      terminal: const TerminalInfo(id: 'c8f723c1-45ad-4381-8a8a-2b4b7b754aa8', name: 'T1', code: 'T1'),
+      restaurant: const RestaurantInfo(id: 'r5', name: 'MCHJ XABIBA BONU SAVDO', code: 'SB'),
+      terminal: const TerminalInfo(id: 'efaeef2d-f568-44f9-a066-cc660a133db0', name: 'T1', code: 'T1'),
       staff: StaffInfo(id: 's1', name: name, role: role),
     );
 
-/// «Ekranni o'zgartirish» (ixcham) rejimini yoqish.
-Override compactProviderOverride(bool on) =>
-    compactProvider.overrideWith((ref) => CompactCtl(on, (_) async => true));
-
 const _phone = Size(390, 844);
+const _narrow = Size(360, 740); // kichik Android (Samsung A-seriya)
 const _tablet = Size(1280, 800);
 const _tabletPortrait = Size(800, 1280);
 
 Future<void> _loadFonts() async {
   final inter = File('assets/fonts/Inter-Variable.ttf');
   if (inter.existsSync()) {
-    final l = FontLoader('Inter')
-      ..addFont(Future.value(ByteData.view(inter.readAsBytesSync().buffer)));
+    final l = FontLoader('Inter')..addFont(Future.value(ByteData.view(inter.readAsBytesSync().buffer)));
     await l.load();
   }
   final dir = Platform.environment['FLUTTER_MATERIAL_FONTS'] ?? '';
   final iconFile = File('$dir/MaterialIcons-Regular.otf');
   if (iconFile.existsSync()) {
-    final icons = FontLoader('MaterialIcons')
-      ..addFont(Future.value(ByteData.view(iconFile.readAsBytesSync().buffer)));
+    final icons = FontLoader('MaterialIcons')..addFont(Future.value(ByteData.view(iconFile.readAsBytesSync().buffer)));
     await icons.load();
   }
 }
 
-Future<void> _shot(
-  WidgetTester tester,
-  String name,
-  Size size,
-  Widget child, {
-  required List<Override> overrides,
-  Future<void> Function(WidgetTester t)? after,
-}) async {
+Future<void> _shot(WidgetTester tester, String name, Size size, Widget child,
+    {required List<Override> overrides, required bool light, Future<void> Function(WidgetTester t)? after}) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
@@ -192,9 +164,9 @@ Future<void> _shot(
     overrides: overrides,
     child: MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark(),
-      darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.dark,
+      theme: bzTheme(light),
+      darkTheme: bzTheme(light),
+      themeMode: light ? ThemeMode.light : ThemeMode.dark,
       home: child,
     ),
   ));
@@ -207,138 +179,96 @@ Future<void> _shot(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-
   late SharedPreferences prefs;
   late AppConfig cfg;
 
   setUpAll(() async {
     await _loadFonts();
-    SharedPreferences.setMockInitialValues({
-      'base_url': 'https://dietbistro.uz',
-      'terminal_code': 'T1',
-    });
+    SharedPreferences.setMockInitialValues({'base_url': 'https://next.aiba.uz', 'terminal_code': 'T1'});
     const status = MethodChannel('dev.fluttercommunity.plus/connectivity');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(status, (c) async => ['wifi']);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(status, (c) async => ['wifi']);
     const events = MethodChannel('dev.fluttercommunity.plus/connectivity_status');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(events, (c) async => null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(events, (c) async => null);
     prefs = await SharedPreferences.getInstance();
     cfg = AppConfig(prefs, const FlutterSecureStorage());
   });
 
-  List<Override> ov({
-    String role = 'market',
-    String name = 'Rasul',
-    String loc = 'uz',
-    bool preorder = false,
-    bool compact = false,
-  }) =>
-      [
+  List<Override> ov({String role = 'market', String name = 'Rasul', String loc = 'uz', bool preorder = false, bool light = false}) => [
         sharedPreferencesProvider.overrideWithValue(prefs),
-        dioClientProvider.overrideWithValue(_FakeDio(cfg, manager: role != 'market', preorder: preorder)),
+        dioClientProvider.overrideWithValue(_FakeDio(cfg, preorder: preorder)),
         appConfigProvider.overrideWithValue(cfg),
-        sessionProvider.overrideWith(
-            (ref) => SessionNotifier(_FakeRepo())..setSession(_session(role, name))),
+        sessionProvider.overrideWith((ref) => SessionNotifier(_FakeRepo())..setSession(_session(role, name))),
         localeProvider.overrideWith((ref) => LocaleCtl(loc, (_) async => true)),
+        lightThemeProvider.overrideWith((ref) => ThemeCtl(light, (_) async => true)),
       ];
 
-  final doc = Doc.fromBranch(
-      Map<String, dynamic>.from((_branches['branches'] as List).first as Map), '2026-09-04');
-  final preDoc = Doc.fromBranch(
-      Map<String, dynamic>.from((_branches['branches'] as List)[1] as Map), '2026-09-04');
+  final doc = Doc.fromBranch(Map<String, dynamic>.from((_branches['branches'] as List).first as Map), '2026-09-04');
+  final preDoc = Doc.fromBranch(Map<String, dynamic>.from((_branches['branches'] as List)[1] as Map), '2026-09-04');
+  final full = Doc.fromRequest(Map<String, dynamic>.from(_branchDetail), doc.branch, '2026-09-04');
+  final pre = Doc.fromRequest(Map<String, dynamic>.from(_myPre), doc.branch, '2026-09-04');
 
-  // ── RO'YXAT ──
-  testWidgets('ro\'yxat — Bozorkom planshet', (t) async {
-    await _shot(t, 'bk_list_market_tablet', _tablet, const BozorkomShell(), overrides: ov());
+  Future<void> openDrawer(WidgetTester t) async {
+    await t.tap(find.byTooltip('Open navigation menu'));
+    await t.pump(const Duration(milliseconds: 500));
+  }
+
+  // ── QORA tema ──
+  testWidgets('qora: ro\'yxat Bozorkom planshet', (t) async {
+    await _shot(t, 'bk_list_market_tablet', _tablet, const BozorkomShell(), overrides: ov(), light: false);
   });
-  testWidgets('ro\'yxat — Bozorkom telefon', (t) async {
-    await _shot(t, 'bk_list_market_phone', _phone, const BozorkomShell(), overrides: ov());
+  testWidgets('qora: ro\'yxat Bozorkom telefon', (t) async {
+    await _shot(t, 'bk_list_market_phone', _phone, const BozorkomShell(), overrides: ov(), light: false);
   });
-  testWidgets('ro\'yxat — Bozorkom planshet portret', (t) async {
-    await _shot(t, 'bk_list_market_tablet_portrait', _tabletPortrait, const BozorkomShell(), overrides: ov());
+  testWidgets('qora: ro\'yxat TOR telefon (360) ruscha', (t) async {
+    await _shot(t, 'bk_list_ru_narrow', _narrow, const BozorkomShell(), overrides: ov(loc: 'ru'), light: false);
   });
-  testWidgets('ro\'yxat — menejer telefon', (t) async {
-    await _shot(t, 'bk_list_manager_phone', _phone, const BozorkomShell(),
-        overrides: ov(role: 'manager', name: 'Rasss'));
+  testWidgets('qora: ro\'yxat planshet portret', (t) async {
+    await _shot(t, 'bk_list_market_tablet_portrait', _tabletPortrait, const BozorkomShell(), overrides: ov(), light: false);
   });
-  testWidgets('ro\'yxat — ruscha planshet, filtr ochiq', (t) async {
-    await _shot(t, 'bk_list_ru_filter_tablet', _tablet, const BozorkomShell(),
-        overrides: ov(loc: 'ru'), after: (t) async {
+  testWidgets('qora: ro\'yxat menejer telefon', (t) async {
+    await _shot(t, 'bk_list_manager_phone', _phone, const BozorkomShell(), overrides: ov(role: 'manager', name: 'Manager'), light: false);
+  });
+  testWidgets('qora: filtr ochiq ruscha planshet', (t) async {
+    await _shot(t, 'bk_list_ru_filter_tablet', _tablet, const BozorkomShell(), overrides: ov(loc: 'ru'), light: false, after: (t) async {
       await t.tap(find.text('Фильтр'));
       await t.pump(const Duration(milliseconds: 300));
     });
   });
-  testWidgets('ro\'yxat — inglizcha telefon, filtr ochiq', (t) async {
-    await _shot(t, 'bk_list_en_filter_phone', _phone, const BozorkomShell(),
-        overrides: ov(loc: 'en'), after: (t) async {
+  testWidgets('qora: filtr ochiq inglizcha TOR telefon', (t) async {
+    await _shot(t, 'bk_list_en_filter_narrow', _narrow, const BozorkomShell(), overrides: ov(loc: 'en'), light: false, after: (t) async {
       await t.tap(find.text('Filter'));
       await t.pump(const Duration(milliseconds: 300));
     });
   });
-  testWidgets('ro\'yxat — ixcham rejim telefon', (t) async {
-    await _shot(t, 'bk_list_compact_phone', _phone, const BozorkomShell(),
-        overrides: [...ov(), compactProviderOverride(true)]);
+  testWidgets('qora: yon menyu Bozorkom', (t) async {
+    await _shot(t, 'bk_drawer_market_phone', _phone, const BozorkomShell(), overrides: ov(), light: false, after: openDrawer);
   });
-
-  // ── YON MENYU ──
-  testWidgets('yon menyu — Bozorkom', (t) async {
-    await _shot(t, 'bk_drawer_market_phone', _phone, const BozorkomShell(), overrides: ov(),
-        after: (t) async {
-      await t.tap(find.byTooltip('Open navigation menu'));
-      await t.pump(const Duration(milliseconds: 500));
-    });
+  testWidgets('qora: hujjat Bozorkom (Tahrirlash aktiv) telefon', (t) async {
+    await _shot(t, 'bk_detail_market_phone', _phone, DocDetailScreen(doc: doc), overrides: ov(), light: false);
   });
-  testWidgets('yon menyu — menejer ruscha', (t) async {
-    await _shot(t, 'bk_drawer_manager_ru_phone', _phone, const BozorkomShell(),
-        overrides: ov(role: 'manager', name: 'Rasss', loc: 'ru'), after: (t) async {
-      await t.tap(find.byTooltip('Open navigation menu'));
-      await t.pump(const Duration(milliseconds: 500));
-    });
+  testWidgets('qora: hujjat menejer (Qabul aktiv) TOR telefon', (t) async {
+    await _shot(t, 'bk_detail_manager_narrow', _narrow, DocDetailScreen(doc: doc), overrides: ov(role: 'manager', name: 'Manager'), light: false);
   });
-
-  // ── HUJJAT KO'RISH: rolga qarab tugmalar ──
-  testWidgets('hujjat — Bozorkom (Tahrirlash aktiv) telefon', (t) async {
-    await _shot(t, 'bk_detail_market_phone', _phone, DocDetailScreen(doc: doc), overrides: ov());
+  testWidgets('qora: hujjat planshet', (t) async {
+    await _shot(t, 'bk_detail_market_tablet', _tablet, DocDetailScreen(doc: doc), overrides: ov(), light: false);
   });
-  testWidgets('hujjat — menejer (Qabul qilish aktiv) telefon', (t) async {
-    await _shot(t, 'bk_detail_manager_phone', _phone, DocDetailScreen(doc: doc),
-        overrides: ov(role: 'manager', name: 'Rasss'));
+  testWidgets('qora: oldindan buyurtma (narxsiz) menejer', (t) async {
+    await _shot(t, 'bk_detail_preorder_manager_phone', _phone, DocDetailScreen(doc: preDoc), overrides: ov(role: 'manager', name: 'Kamol', preorder: true), light: false);
   });
-  testWidgets('hujjat — planshet Bozorkom', (t) async {
-    await _shot(t, 'bk_detail_market_tablet', _tablet, DocDetailScreen(doc: doc), overrides: ov());
+  testWidgets('qora: yaratish bo\'sh TOR telefon ruscha', (t) async {
+    await _shot(t, 'bk_editor_new_ru_narrow', _narrow, const DocEditorScreen(date: '2026-09-04'), overrides: ov(loc: 'ru'), light: false);
   });
-  testWidgets('hujjat — oldindan buyurtma (narxsiz) menejer', (t) async {
-    await _shot(t, 'bk_detail_preorder_manager_phone', _phone, DocDetailScreen(doc: preDoc),
-        overrides: ov(role: 'manager', name: 'Kamol', preorder: true));
+  testWidgets('qora: tahrirlash narx bilan planshet', (t) async {
+    await _shot(t, 'bk_editor_edit_market_tablet', _tablet, DocEditorScreen(date: '2026-09-04', existing: full), overrides: ov(), light: false);
   });
-
-  // ── YARATISH / TAHRIRLASH ──
-  testWidgets('yaratish — Bozorkom bo\'sh telefon', (t) async {
-    await _shot(t, 'bk_editor_new_market_phone', _phone, const DocEditorScreen(date: '2026-09-04'),
-        overrides: ov());
+  testWidgets('qora: tahrirlash narx bilan telefon', (t) async {
+    await _shot(t, 'bk_editor_edit_market_phone', _phone, DocEditorScreen(date: '2026-09-04', existing: full), overrides: ov(), light: false);
   });
-  testWidgets('tahrirlash — Bozorkom narx bilan planshet', (t) async {
-    final full = Doc.fromRequest(Map<String, dynamic>.from(_branchDetail), doc.branch, '2026-09-04');
-    await _shot(t, 'bk_editor_edit_market_tablet', _tablet,
-        DocEditorScreen(date: '2026-09-04', existing: full), overrides: ov());
+  testWidgets('qora: menejer faqat miqdor telefon', (t) async {
+    await _shot(t, 'bk_editor_manager_phone', _phone, DocEditorScreen(date: '2026-09-04', existing: pre), overrides: ov(role: 'manager', name: 'Kamol', preorder: true), light: false);
   });
-  testWidgets('tahrirlash — Bozorkom narx bilan telefon', (t) async {
-    final full = Doc.fromRequest(Map<String, dynamic>.from(_branchDetail), doc.branch, '2026-09-04');
-    await _shot(t, 'bk_editor_edit_market_phone', _phone,
-        DocEditorScreen(date: '2026-09-04', existing: full), overrides: ov());
-  });
-  testWidgets('yaratish — menejer (faqat miqdor) telefon', (t) async {
-    final pre = Doc.fromRequest(Map<String, dynamic>.from(_myPre), doc.branch, '2026-09-04');
-    await _shot(t, 'bk_editor_manager_phone', _phone,
-        DocEditorScreen(date: '2026-09-04', existing: pre),
-        overrides: ov(role: 'manager', name: 'Kamol', preorder: true));
-  });
-
-  // ── MAHSULOT TANLASH ──
-  testWidgets('mahsulot tanlash — telefon', (t) async {
-    await _shot(t, 'bk_picker_phone', _phone, const ProductPickerScreen(), overrides: ov(),
-        after: (t) async {
+  testWidgets('qora: mahsulot tanlash telefon', (t) async {
+    await _shot(t, 'bk_picker_phone', _phone, const ProductPickerScreen(), overrides: ov(), light: false, after: (t) async {
       await t.tap(find.text('Масло'));
       await t.pump(const Duration(milliseconds: 300));
       await t.tap(find.text('раст.масло'));
@@ -346,26 +276,56 @@ void main() {
       await t.pump(const Duration(milliseconds: 300));
     });
   });
-  testWidgets('mahsulot tanlash — planshet', (t) async {
-    await _shot(t, 'bk_picker_tablet', _tablet, const ProductPickerScreen(), overrides: ov(),
-        after: (t) async {
+  testWidgets('qora: mahsulot tanlash planshet', (t) async {
+    await _shot(t, 'bk_picker_tablet', _tablet, const ProductPickerScreen(), overrides: ov(), light: false, after: (t) async {
       await t.tap(find.text('Мясные продукты'));
       await t.pump(const Duration(milliseconds: 300));
     });
   });
+  testWidgets('qora: til / IP / umumiy', (t) async {
+    await _shot(t, 'bk_lang_phone', _phone, const LanguageScreen(), overrides: ov(), light: false);
+  });
+  testWidgets('qora: IP sozlamalar', (t) async {
+    await _shot(t, 'bk_ip_phone', _phone, const IpSettingsScreen(), overrides: ov(), light: false);
+  });
+  testWidgets('qora: umumiy sozlamalar TOR ruscha', (t) async {
+    await _shot(t, 'bk_general_ru_narrow', _narrow, const GeneralSettingsScreen(), overrides: ov(role: 'manager', name: 'Manager', loc: 'ru'), light: false);
+  });
 
-  // ── SOZLAMALAR ──
-  testWidgets('til tanlash', (t) async {
-    await _shot(t, 'bk_lang_phone', _phone, const LanguageScreen(), overrides: ov());
+  // ── OQ tema ──
+  testWidgets('oq: ro\'yxat Bozorkom telefon', (t) async {
+    await _shot(t, 'bk_light_list_market_phone', _phone, const BozorkomShell(), overrides: ov(light: true), light: true);
   });
-  testWidgets('IP sozlamalar', (t) async {
-    await _shot(t, 'bk_ip_phone', _phone, const IpSettingsScreen(), overrides: ov());
+  testWidgets('oq: ro\'yxat planshet ruscha', (t) async {
+    await _shot(t, 'bk_light_list_ru_tablet', _tablet, const BozorkomShell(), overrides: ov(loc: 'ru', light: true), light: true);
   });
-  testWidgets('umumiy sozlamalar telefon', (t) async {
-    await _shot(t, 'bk_general_phone', _phone, const GeneralSettingsScreen(), overrides: ov());
+  testWidgets('oq: yon menyu menejer ruscha', (t) async {
+    await _shot(t, 'bk_light_drawer_manager_ru', _phone, const BozorkomShell(), overrides: ov(role: 'manager', name: 'Manager', loc: 'ru', light: true), light: true, after: openDrawer);
   });
-  testWidgets('umumiy sozlamalar ruscha planshet', (t) async {
-    await _shot(t, 'bk_general_ru_tablet', _tablet, const GeneralSettingsScreen(),
-        overrides: ov(loc: 'ru'));
+  testWidgets('oq: hujjat menejer TOR telefon', (t) async {
+    await _shot(t, 'bk_light_detail_manager_narrow', _narrow, DocDetailScreen(doc: doc), overrides: ov(role: 'manager', name: 'Manager', light: true), light: true);
+  });
+  testWidgets('oq: tahrirlash narx bilan telefon', (t) async {
+    await _shot(t, 'bk_light_editor_edit_phone', _phone, DocEditorScreen(date: '2026-09-04', existing: full), overrides: ov(light: true), light: true);
+  });
+  testWidgets('oq: yaratish bo\'sh TOR ruscha', (t) async {
+    await _shot(t, 'bk_light_editor_new_ru_narrow', _narrow, const DocEditorScreen(date: '2026-09-04'), overrides: ov(loc: 'ru', light: true), light: true);
+  });
+  testWidgets('oq: mahsulot tanlash telefon', (t) async {
+    await _shot(t, 'bk_light_picker_phone', _phone, const ProductPickerScreen(), overrides: ov(light: true), light: true, after: (t) async {
+      await t.tap(find.text('Масло'));
+      await t.pump(const Duration(milliseconds: 300));
+      await t.tap(find.text('раст.масло'));
+      await t.pump(const Duration(milliseconds: 300));
+    });
+  });
+  testWidgets('oq: umumiy sozlamalar ruscha', (t) async {
+    await _shot(t, 'bk_light_general_ru_phone', _phone, const GeneralSettingsScreen(), overrides: ov(role: 'manager', name: 'Manager', loc: 'ru', light: true), light: true);
+  });
+  testWidgets('oq: IP sozlamalar', (t) async {
+    await _shot(t, 'bk_light_ip_phone', _phone, const IpSettingsScreen(), overrides: ov(light: true), light: true);
+  });
+  testWidgets('oq: til tanlash', (t) async {
+    await _shot(t, 'bk_light_lang_phone', _phone, const LanguageScreen(), overrides: ov(loc: 'ru', light: true), light: true);
   });
 }

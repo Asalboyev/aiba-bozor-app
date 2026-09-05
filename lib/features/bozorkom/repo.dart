@@ -15,22 +15,6 @@ const _base = '/api/v2/pos-terminal/market';
 /// Ro'yxat sanasi (YYYY-MM-DD).
 final docDateProvider = StateProvider<String>((ref) => isoDay(DateTime.now()));
 
-/// «Ekranni o'zgartirish» — ixcham/keng ko'rinish (saqlanadi).
-final compactProvider = StateNotifierProvider<CompactCtl, bool>((ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return CompactCtl(prefs.getBool('bozor_compact') ?? false,
-      (v) => prefs.setBool('bozor_compact', v));
-});
-
-class CompactCtl extends StateNotifier<bool> {
-  CompactCtl(super.initial, this._save);
-  final Future<bool> Function(bool) _save;
-  void toggle() {
-    state = !state;
-    _save(state);
-  }
-}
-
 /// Rol: Bozorkom (market) — hamma filial; aks holda filial menejeri.
 bool isMarketRole(Ref ref) => ref.read(sessionProvider)?.staff.role == 'market';
 

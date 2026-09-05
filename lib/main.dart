@@ -4,11 +4,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/network/dio_client.dart' show loadBundledRoots;
 import 'core/providers/core_providers.dart';
-import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/providers/auth_providers.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/home/presentation/home_shell.dart';
 import 'features/bozorkom/bozorkom_shell.dart';
+import 'features/bozorkom/theme.dart';
 import 'features/market/bozor_shell.dart' show BozorSetupScreen;
 
 // Faqat ishlab chiqish/vizual tekshiruv uchun: login'ni chetlab o'tib to'g'ridan
@@ -81,15 +81,15 @@ class _AibaPosAppState extends ConsumerState<AibaPosApp> {
       );
     });
 
+    // BOZORKOM: «Ekranni o'zgartirish» — oq/qora tema (saqlanadi).
+    final light = ref.watch(lightThemeProvider);
     return MaterialApp(
       title: 'AIBA Bozor',
       scaffoldMessengerKey: _messengerKey,
       debugShowCheckedModeBanner: false,
-      // POS terminal har doim Figma qorong'i mavzusida (qurilma temasiga
-      // bog'liq emas) — barcha ekranlar bir xil ko'rinadi.
-      theme: AppTheme.dark(),
-      darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.dark,
+      theme: bzTheme(light),
+      darkTheme: bzTheme(light),
+      themeMode: light ? ThemeMode.light : ThemeMode.dark,
       home: _kDebugHome
           ? HomeShell(initialIndex: _kDebugIndex)
           : (!_restored

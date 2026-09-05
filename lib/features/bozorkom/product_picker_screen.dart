@@ -1,13 +1,11 @@
-// MAHSULOT TANLASH — qidiruv + kategoriya chiplari + karta gridi (nom, birlik,
-// katalog narxi). Bir nechtasini belgilab «Tayyor». Telefonda 2, planshetda
-// 3–4 ustun.
+// MAHSULOT TANLASH — qidiruv + kategoriya chiplari + karta gridi.
+// Telefonda 2, planshetda 3–4 ustun. Oq/qora tema.
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/widgets/pos_chrome.dart';
 import 'i18n.dart';
 import 'models.dart';
 import 'repo.dart';
@@ -25,7 +23,7 @@ class _ProductPickerScreenState extends ConsumerState<ProductPickerScreen> {
   List<CatalogItem> _all = const [];
   bool _loading = true;
   String? _error;
-  String _cat = ''; // '' = hammasi
+  String _cat = '';
   final Set<String> _picked = {};
 
   @override
@@ -63,12 +61,8 @@ class _ProductPickerScreenState extends ConsumerState<ProductPickerScreen> {
   }
 
   List<String> get _cats {
-    final s = <String>{};
-    for (final i in _all) {
-      if (i.category.trim().isNotEmpty) s.add(i.category.trim());
-    }
-    final l = s.toList()..sort();
-    return l;
+    final s = <String>{for (final i in _all) if (i.category.trim().isNotEmpty) i.category.trim()};
+    return s.toList()..sort();
   }
 
   List<CatalogItem> get _shown {
@@ -82,34 +76,28 @@ class _ProductPickerScreenState extends ConsumerState<ProductPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = bz(context);
     final tr = ref.watch(trProvider);
-    final wide = isWide(context);
+    final pad = hPad(context);
     final w = MediaQuery.sizeOf(context).width;
     final cols = w >= 1100 ? 4 : (w >= 720 ? 3 : 2);
     final cats = _cats;
     final shown = _shown;
 
     return Scaffold(
-      backgroundColor: PosColors.bg,
+      backgroundColor: c.bg,
       appBar: AppBar(
-        backgroundColor: PosColors.bg,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded), onPressed: () => Navigator.of(context).pop()),
-        title: Text(tr('createDoc'),
-            maxLines: 2,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w400, height: 1.2)),
+        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => Navigator.of(context).pop()),
+        title: FitText(tr('createDoc'), style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w400)),
       ),
       body: Column(children: [
         Padding(
-          padding: EdgeInsets.fromLTRB(wide ? 24 : 14, 8, wide ? 24 : 14, 8),
+          padding: EdgeInsets.fromLTRB(pad, 8, pad, 8),
           child: AibaField(
             controller: _searchCtl,
             label: '',
             hint: tr('searchProduct'),
             prefixIcon: Icons.search_rounded,
-            autofocus: false,
             onChanged: (_) {
               _debounce?.cancel();
               _debounce = Timer(const Duration(milliseconds: 150), () => setState(() {}));
@@ -121,30 +109,25 @@ class _ProductPickerScreenState extends ConsumerState<ProductPickerScreen> {
             height: 48,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(horizontal: wide ? 24 : 14),
+              padding: EdgeInsets.symmetric(horizontal: pad),
               children: [
                 _CatChip(label: tr('all'), selected: _cat.isEmpty, onTap: () => setState(() => _cat = '')),
-                for (final c in cats)
-                  _CatChip(label: c, selected: _cat == c, onTap: () => setState(() => _cat = c)),
+                for (final k in cats) _CatChip(label: k, selected: _cat == k, onTap: () => setState(() => _cat = k)),
               ],
             ),
           ),
-        const Divider(height: 1, color: PosColors.cardBorder),
+        Divider(height: 1, color: c.border),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator(color: PosColors.blue))
+              ? Center(child: CircularProgressIndicator(color: c.blue))
               : _error != null
                   ? EmptyState(icon: Icons.cloud_off_rounded, title: _error!)
                   : shown.isEmpty
                       ? EmptyState(icon: Icons.search_off_rounded, title: tr('noProducts'))
                       : GridView.builder(
-                          padding: EdgeInsets.fromLTRB(wide ? 24 : 14, 14, wide ? 24 : 14, 100),
+                          padding: EdgeInsets.fromLTRB(pad, 14, pad, 100),
                           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: cols,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 12,
-                            childAspectRatio: 1.45,
-                          ),
+                              crossAxisCount: cols, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.45),
                           itemCount: shown.length,
                           itemBuilder: (_, i) {
                             final it = shown[i];
@@ -152,14 +135,7 @@ class _ProductPickerScreenState extends ConsumerState<ProductPickerScreen> {
                             return _ProductCard(
                               item: it,
                               selected: on,
-                              tr: tr,
-                              onTap: () => setState(() {
-                                if (on) {
-                                  _picked.remove(it.name);
-                                } else {
-                                  _picked.add(it.name);
-                                }
-                              }),
+                              onTap: () => setState(() => on ? _picked.remove(it.name) : _picked.add(it.name)),
                             );
                           },
                         ),
@@ -167,13 +143,11 @@ class _ProductPickerScreenState extends ConsumerState<ProductPickerScreen> {
       ]),
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: EdgeInsets.fromLTRB(wide ? 24 : 14, 8, wide ? 24 : 14, 12),
+          padding: EdgeInsets.fromLTRB(pad, 8, pad, 12),
           child: PrimaryBtn(
             label: _picked.isEmpty ? tr('done') : '${tr('done')}  •  ${_picked.length}',
             icon: Icons.check_rounded,
-            onTap: () => Navigator.of(context).pop(
-              _all.where((i) => _picked.contains(i.name)).toList(),
-            ),
+            onTap: () => Navigator.of(context).pop(_all.where((i) => _picked.contains(i.name)).toList()),
           ),
         ),
       ),
@@ -187,41 +161,40 @@ class _CatChip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(right: 8, top: 6, bottom: 6),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(999),
-            onTap: onTap,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: selected ? PosColors.blue.withValues(alpha: 0.18) : PosColors.field,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: selected ? PosColors.blue : PosColors.cardBorder),
-              ),
-              child: Text(label,
-                  style: TextStyle(
-                      color: selected ? Colors.white : PosColors.label,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700)),
+  Widget build(BuildContext context) {
+    final c = bz(context);
+    return Padding(
+      padding: const EdgeInsets.only(right: 8, top: 6, bottom: 6),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: selected ? c.blue.withValues(alpha: 0.16) : c.field,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: selected ? c.blue : c.border),
             ),
+            child: Text(label, style: TextStyle(color: selected ? c.text : c.label, fontSize: 14, fontWeight: FontWeight.w700)),
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _ProductCard extends StatelessWidget {
-  const _ProductCard({required this.item, required this.selected, required this.tr, required this.onTap});
+  const _ProductCard({required this.item, required this.selected, required this.onTap});
   final CatalogItem item;
   final bool selected;
-  final Tr tr;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final c = bz(context);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -231,26 +204,27 @@ class _ProductCard extends StatelessWidget {
           duration: const Duration(milliseconds: 140),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: selected ? PosColors.blue.withValues(alpha: 0.16) : PosColors.card,
+            color: selected ? c.blue.withValues(alpha: 0.14) : c.card,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: selected ? PosColors.blue : PosColors.cardBorder, width: selected ? 1.5 : 1),
+            border: Border.all(color: selected ? c.blue : c.border, width: selected ? 1.5 : 1),
           ),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Expanded(
-                child: Text(item.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 15.5, fontWeight: FontWeight.w700)),
+                child: Text(item.name, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: c.text, fontSize: 15.5, fontWeight: FontWeight.w700)),
               ),
-              if (selected) const Icon(Icons.check_circle_rounded, color: PosColors.blue, size: 20),
+              if (selected) Icon(Icons.check_circle_rounded, color: c.blue, size: 20),
             ]),
             const Spacer(),
             Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text(item.unit, style: const TextStyle(color: PosColors.blue, fontSize: 13, fontWeight: FontWeight.w600)),
+              Text(item.unit, style: TextStyle(color: c.blue, fontSize: 13, fontWeight: FontWeight.w600)),
               const Spacer(),
-              Text(item.price > 0 ? fmtSum(item.price) : '—',
-                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+              Flexible(
+                child: FitText(item.price > 0 ? fmtSum(item.price) : '—',
+                    align: Alignment.centerRight,
+                    style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w800)),
+              ),
             ]),
           ]),
         ),
