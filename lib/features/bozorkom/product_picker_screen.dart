@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'i18n.dart';
 import 'models.dart';
+import 'price_history_screen.dart';
 import 'repo.dart';
 import 'widgets.dart';
 
@@ -60,6 +61,16 @@ class _ProductPickerScreenState extends ConsumerState<ProductPickerScreen> {
     }
   }
 
+  Future<void> _searchServer(String q) async {
+    try {
+      final more = await ref.read(bozorkomRepoProvider).items(q);
+      if (!mounted || q != _searchCtl.text.trim()) return;
+      final known = {for (final i in _all) i.name.toLowerCase()};
+      final fresh = more.where((i) => !known.contains(i.name.toLowerCase())).toList();
+      if (fresh.isNotEmpty) setState(() => _all = [..._all, ...fresh]);
+    } catch (_) {/* lokal natija qoladi */}
+  }
+
   List<String> get _cats {
     final s = <String>{for (final i in _all) if (i.category.trim().isNotEmpty) i.category.trim()};
     return s.toList()..sort();
@@ -80,7 +91,12 @@ class _ProductPickerScreenState extends ConsumerState<ProductPickerScreen> {
     final tr = ref.watch(trProvider);
     final pad = hPad(context);
     final w = MediaQuery.sizeOf(context).width;
-    final cols = w >= 1100 ? 4 : (w >= 720 ? 3 : 2);
+    // Ustunlar: kenglik bo'yicha yuqori chegara, lekin karta hech qachon
+    // 150 px × shrift masshtabidan tor bo'lmasin — aks holda 320 px telefonda
+    // OS shrifti 1.3 bo'lsa «раст.масло» so'z o'rtasidan bo'linib ikki qatorga tushardi.
+    final ts = MediaQuery.textScalerOf(context).scale(1.0);
+    final capCols = w >= 1100 ? 4 : (w >= 720 ? 3 : 2);
+    final cols = (w / (150 * ts)).floor().clamp(1, capCols);
     final cats = _cats;
     final shown = _shown;
 
@@ -88,7 +104,7 @@ class _ProductPickerScreenState extends ConsumerState<ProductPickerScreen> {
       backgroundColor: c.bg,
       appBar: AppBar(
         leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => Navigator.of(context).pop()),
-        title: FitText(tr('createDoc'), style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w400)),
+        title: BarTitle(tr('createDoc'), style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w400)),
       ),
       body: Column(children: [
         Padding(
@@ -100,7 +116,14 @@ class _ProductPickerScreenState extends ConsumerState<ProductPickerScreen> {
             prefixIcon: Icons.search_rounded,
             onChanged: (_) {
               _debounce?.cancel();
-              _debounce = Timer(const Duration(milliseconds: 150), () => setState(() {}));
+              _debounce = Timer(const Duration(milliseconds: 150), () {
+                if (!mounted) return;
+                setState(() {});
+                // Server katalogni 500 ta bilan kesadi (LIMIT 500): 965 masalliqli
+                // filialda «S…Z» lokal ro'yxatda yo'q — qidiruv serverdan olinadi.
+                final q = _searchCtl.text.trim();
+                if (_all.length >= 500 && q.length >= 2) _searchServer(q);
+              });
             },
           ),
         ),
@@ -127,15 +150,24 @@ class _ProductPickerScreenState extends ConsumerState<ProductPickerScreen> {
                       : GridView.builder(
                           padding: EdgeInsets.fromLTRB(pad, 14, pad, 100),
                           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: cols, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.45),
+                              crossAxisCount: cols, mainAxisSpacing: 12, crossAxisSpacing: 12,
+                              // Balandlik ASPEKTdan emas, MATNdan: 2 qatorli nom + IKKI narx qatori
+                              // (omborda / oxirgi kelgan). `childAspectRatio` 320–360 px telefonda,
+                              // OS shrifti 1.3 bo'lsa Column pastdan toshib ketardi (matritsa testi).
+                              mainAxisExtent: 44 + 86 * MediaQuery.textScalerOf(context).scale(1.0)),
                           itemCount: shown.length,
                           itemBuilder: (_, i) {
                             final it = shown[i];
                             final on = _picked.contains(it.name);
                             return _ProductCard(
+                              unitText: unitLabel(it.unit, tr),
                               item: it,
                               selected: on,
+                              tr: tr,
                               onTap: () => setState(() => on ? _picked.remove(it.name) : _picked.add(it.name)),
+                              // Bosib turish — narx tarixi (bozorchi «o'tgan hafta qancha edi?»).
+                              onLongPress: () => Navigator.of(context)
+                                  .push(MaterialPageRoute(builder: (_) => PriceHistoryScreen(name: it.name))),
                             );
                           },
                         ),
@@ -187,22 +219,38 @@ class _CatChip extends StatelessWidget {
 }
 
 class _ProductCard extends StatelessWidget {
-  const _ProductCard({required this.item, required this.selected, required this.onTap});
+  const _ProductCard({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+    required this.unitText,
+    required this.tr,
+    this.onLongPress,
+  });
   final CatalogItem item;
+  final String unitText;
   final bool selected;
+  final Tr tr;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
     final c = bz(context);
+    final last = item.lastPrice;
+    final pct = item.changePct;
+    // Oxirgi kelgan narx omborga nisbatan: yashil — arzonroq, qizil — qimmatroq.
+    final lastColor = (pct == null || pct.abs() < 0.5) ? c.text : (pct < 0 ? c.green : c.red);
+    final arrow = (pct == null || pct.abs() < 0.5) ? null : (pct < 0 ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded);
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
+        onLongPress: onLongPress,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 140),
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
           decoration: BoxDecoration(
             color: selected ? c.blue.withValues(alpha: 0.14) : c.card,
             borderRadius: BorderRadius.circular(16),
@@ -217,13 +265,27 @@ class _ProductCard extends StatelessWidget {
               if (selected) Icon(Icons.check_circle_rounded, color: c.blue, size: 20),
             ]),
             const Spacer(),
+            // 1-qator: OMBORDA (o'rtacha tannarx) + birlik.
             Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text(item.unit, style: TextStyle(color: c.blue, fontSize: 13, fontWeight: FontWeight.w600)),
+              Text(unitText, style: TextStyle(color: c.blue, fontSize: 12.5, fontWeight: FontWeight.w700)),
               const Spacer(),
               Flexible(
-                child: FitText(item.price > 0 ? fmtSum(item.price) : '—',
+                child: FitText(item.price > 0 ? '${tr('inStock')} ${fmtSum(item.price)}' : '${tr('inStock')} —',
                     align: Alignment.centerRight,
-                    style: TextStyle(color: c.text, fontSize: 18, fontWeight: FontWeight.w800)),
+                    style: TextStyle(color: c.label, fontSize: 12.5, fontWeight: FontWeight.w600)),
+              ),
+            ]),
+            const SizedBox(height: 3),
+            // 2-qator: OXIRGI KELGAN narx — katta, rangli; sanasi kichik.
+            Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              if (item.lastDate != null && item.lastDate!.isNotEmpty)
+                Text(prettyDate(item.lastDate!).substring(0, 5), style: TextStyle(color: c.muted, fontSize: 12)),
+              const Spacer(),
+              if (arrow != null) Icon(arrow, size: 15, color: lastColor),
+              Flexible(
+                child: FitText(last != null ? fmtSum(last) : tr('neverBought'),
+                    align: Alignment.centerRight,
+                    style: TextStyle(color: last != null ? lastColor : c.muted, fontSize: last != null ? 18 : 12.5, fontWeight: FontWeight.w800)),
               ),
             ]),
           ]),

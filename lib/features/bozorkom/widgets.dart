@@ -55,6 +55,48 @@ class FitText extends StatelessWidget {
       );
 }
 
+/// App bar sarlavhasi. FitText cheksiz kichraytirardi — 320 px telefonda katta
+/// shrift bilan «Форма накладной / лист предзаказа» ~9 px bo'lib o'qilmasdi
+/// (matritsa testi). Qoida: sig'sa — to'liq; 80% gacha — kichraytir; undan
+/// nariga — «…» bilan qisqartir, lekin harf o'qiladigan bo'lib qolsin.
+class BarTitle extends StatelessWidget {
+  const BarTitle(this.text, {super.key, this.style, this.alignment = Alignment.centerLeft});
+  final String text;
+  /// Berilmasa — atrofdagi DefaultTextStyle (tugma ichida shunday).
+  final TextStyle? style;
+  final Alignment alignment;
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (ctx, cons) {
+        final st = style ?? DefaultTextStyle.of(ctx).style;
+        final tp = TextPainter(
+          text: TextSpan(text: text, style: st),
+          maxLines: 1,
+          textDirection: TextDirection.ltr,
+          textScaler: MediaQuery.textScalerOf(ctx),
+        )..layout();
+        final avail = cons.maxWidth.isFinite ? cons.maxWidth : tp.width;
+        final ta = alignment.x == 0 ? TextAlign.center : (alignment.x < 0 ? TextAlign.left : TextAlign.right);
+        if (tp.width <= avail) return Text(text, style: st, maxLines: 1, softWrap: false, textAlign: ta);
+        if (tp.width * 0.8 <= avail) {
+          return FittedBox(fit: BoxFit.scaleDown, alignment: alignment,
+              child: Text(text, style: st, maxLines: 1, softWrap: false));
+        }
+        return Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: ta,
+            style: st.copyWith(fontSize: (st.fontSize ?? 15) * 0.8));
+      });
+}
+
+/// Katta ekranda kontent cheksiz cho'zilmasin: 1280 px landshaftda jadval
+/// raqamlari nomdan 90 sm nariga ketib, ko'z sakrardi (planshet QA).
+class ContentWrap extends StatelessWidget {
+  const ContentWrap({super.key, required this.child, this.maxWidth = 960});
+  final Widget child;
+  final double maxWidth;
+  @override
+  Widget build(BuildContext context) =>
+      Center(child: ConstrainedBox(constraints: BoxConstraints(maxWidth: maxWidth), child: child));
+}
+
 class AibaCard extends StatelessWidget {
   const AibaCard({
     super.key,
@@ -117,7 +159,8 @@ class Pill extends StatelessWidget {
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         if (icon != null) ...[Icon(icon, size: small ? 12 : 14, color: fg), const SizedBox(width: 5)],
-        Text(label, style: TextStyle(color: fg, fontSize: small ? 11 : 12.5, fontWeight: FontWeight.w700)),
+        Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: fg, fontSize: small ? 11 : 12.5, fontWeight: FontWeight.w700))),
       ]),
     );
   }
@@ -164,7 +207,7 @@ class PrimaryBtn extends StatelessWidget {
             ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
             : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 if (icon != null) ...[Icon(icon, size: 20), const SizedBox(width: 8)],
-                Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: Text(label, maxLines: 1, softWrap: false))),
+                Flexible(child: BarTitle(label, alignment: Alignment.center)),
               ]),
       ),
     );
@@ -198,7 +241,7 @@ class GhostBtn extends StatelessWidget {
         ),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           if (icon != null) ...[Icon(icon, size: 20), const SizedBox(width: 8)],
-          Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: Text(label, maxLines: 1, softWrap: false))),
+          Flexible(child: BarTitle(label, alignment: Alignment.center)),
         ]),
       ),
     );
@@ -245,6 +288,7 @@ class ChoicePill<T> extends StatelessWidget {
     super.key,
     required this.label,
     required this.value,
+    this.placeholder,
     required this.options,
     required this.onChanged,
     this.enabled = true,
@@ -252,6 +296,8 @@ class ChoicePill<T> extends StatelessWidget {
   });
   final String label;
   final T value;
+  /// Qiymat topilmasa ko'rsatiladigan matn («Tanlang»). Bo'lmasa «—».
+  final String? placeholder;
   final List<MapEntry<T, String>> options;
   final ValueChanged<T> onChanged;
   final bool enabled;
@@ -260,7 +306,7 @@ class ChoicePill<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = bz(context);
-    final current = options.where((e) => e.key == value).map((e) => e.value).firstOrNull ?? '—';
+    final current = options.where((e) => e.key == value).map((e) => e.value).firstOrNull ?? placeholder ?? '—';
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (label.isNotEmpty)
         Padding(
@@ -273,8 +319,8 @@ class ChoicePill<T> extends StatelessWidget {
           borderRadius: BorderRadius.circular(999),
           onTap: enabled ? () => _open(context) : null,
           child: Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            constraints: const BoxConstraints(minHeight: 48),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
               color: c.field,
               borderRadius: BorderRadius.circular(999),
@@ -284,6 +330,7 @@ class ChoicePill<T> extends StatelessWidget {
               if (icon != null) ...[Icon(icon, size: 18, color: enabled ? c.blue : c.muted), const SizedBox(width: 8)],
               Expanded(
                 child: Text(current,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     textAlign: icon == null ? TextAlign.center : TextAlign.start,
                     style: TextStyle(color: enabled ? c.text : c.muted, fontSize: 15, fontWeight: FontWeight.w600)),

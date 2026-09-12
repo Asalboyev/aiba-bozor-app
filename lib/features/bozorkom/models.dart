@@ -3,15 +3,21 @@
 // kun = bitta hujjat (№, muallif, qabul qiluvchi, jami, tur, holat).
 
 class BranchRef {
-  const BranchRef({required this.id, required this.name, this.code = ''});
+  const BranchRef({required this.id, required this.name, this.code = '', this.manager = '', this.address = ''});
   final String id;
   final String name;
   final String code;
+  /// Filialning HOZIRGI faol menejeri (har oy almashadi — server xodimlar
+  /// ro'yxatidan jonli beradi). Bo'sh bo'lsa — biriktirilmagan.
+  final String manager;
+  final String address;
 
   factory BranchRef.fromJson(Map<String, dynamic> j) => BranchRef(
         id: (j['id'] ?? j['restaurant_id'] ?? '').toString(),
         name: (j['name'] ?? j['restaurant'] ?? '').toString(),
         code: (j['code'] ?? '').toString(),
+        manager: (j['manager'] ?? '').toString(),
+        address: (j['address'] ?? '').toString(),
       );
 }
 
@@ -22,12 +28,28 @@ class CatalogItem {
     required this.price,
     required this.qty,
     this.category = '',
+    this.lastPrice,
+    this.lastQty,
+    this.lastDate,
+    this.lastSource,
+    this.lastSupplier,
   });
   final String name;
   final String unit;
+  /// Ombordagi o'rtacha tannarx (kartochka).
   final double price;
   final double qty;
   final String category;
+  /// OXIRGI marta bozordan/firmadan kelgan narx (null — hali olinmagan).
+  final double? lastPrice;
+  final double? lastQty;
+  final String? lastDate; // YYYY-MM-DD
+  final String? lastSource; // bozor | firma
+  final String? lastSupplier;
+
+  /// Oxirgi narx omborga nisbatan qancha % o'zgargan (null — solishtirib bo'lmaydi).
+  double? get changePct =>
+      (lastPrice == null || price <= 0) ? null : ((lastPrice! - price) / price * 100);
 
   factory CatalogItem.fromJson(Map<String, dynamic> j) => CatalogItem(
         name: (j['name'] ?? '').toString(),
@@ -35,7 +57,83 @@ class CatalogItem {
         price: _d(j['price']),
         qty: _d(j['qty']),
         category: (j['category'] ?? '').toString(),
+        lastPrice: j['last_price'] == null ? null : _d(j['last_price']),
+        lastQty: j['last_qty'] == null ? null : _d(j['last_qty']),
+        lastDate: j['last_date']?.toString(),
+        lastSource: j['last_source']?.toString(),
+        lastSupplier: j['last_supplier']?.toString(),
       );
+}
+
+/// Yetkazuvchi (firma) — Coca-Cola, sex, ferma... Buyurtma bozorchiga EMAS,
+/// firmaga yuboriladi; firma o'z akkauntidan narx qo'yadi, filial qabul qiladi.
+class SupplierRef {
+  const SupplierRef({required this.id, required this.name, this.phone = '', this.hasAccount = false});
+  final String id;
+  final String name;
+  final String phone;
+  final bool hasAccount;
+  factory SupplierRef.fromJson(Map<String, dynamic> j) => SupplierRef(
+        id: (j['id'] ?? '').toString(),
+        name: (j['name'] ?? '').toString(),
+        phone: (j['phone'] ?? '').toString(),
+        hasAccount: j['has_account'] == true,
+      );
+}
+
+/// Bitta xarid yozuvi — narx tarixi qatori.
+class PriceEntry {
+  const PriceEntry({required this.date, required this.qty, required this.unit, required this.price, required this.total, this.source = '', this.supplier = '', this.actor = ''});
+  final String date;
+  final double qty;
+  final String unit;
+  final double price;
+  final double total;
+  final String source;
+  final String supplier;
+  final String actor;
+  factory PriceEntry.fromJson(Map<String, dynamic> j) => PriceEntry(
+        date: (j['date'] ?? '').toString(),
+        qty: _d(j['qty']),
+        unit: (j['unit'] ?? 'kg').toString(),
+        price: _d(j['price']),
+        total: _d(j['total']),
+        source: (j['source'] ?? '').toString(),
+        supplier: (j['supplier'] ?? '').toString(),
+        actor: (j['actor'] ?? '').toString(),
+      );
+}
+
+/// GET /market/price-history — mahsulot narx tarixi + ombor + statistika.
+class PriceHistory {
+  const PriceHistory({required this.name, this.stockQty, this.stockUnit, this.avgCost, this.count = 0, this.last, this.prev, this.changePct, this.min, this.max, this.avg, this.items = const []});
+  final String name;
+  final double? stockQty;
+  final String? stockUnit;
+  final double? avgCost;
+  final int count;
+  final double? last;
+  final double? prev;
+  final double? changePct;
+  final double? min;
+  final double? max;
+  final double? avg;
+  final List<PriceEntry> items;
+  factory PriceHistory.fromJson(Map<String, dynamic> j) {
+    final st = j['stock'] is Map ? Map<String, dynamic>.from(j['stock'] as Map) : null;
+    final s = j['stats'] is Map ? Map<String, dynamic>.from(j['stats'] as Map) : const <String, dynamic>{};
+    double? od(Object? v) => v == null ? null : _d(v);
+    return PriceHistory(
+      name: (j['name'] ?? '').toString(),
+      stockQty: st == null ? null : _d(st['qty']),
+      stockUnit: st?['unit']?.toString(),
+      avgCost: st == null ? null : _d(st['avg_cost']),
+      count: _i(s['count']) ?? 0,
+      last: od(s['last']), prev: od(s['prev']), changePct: od(s['change_pct']),
+      min: od(s['min']), max: od(s['max']), avg: od(s['avg']),
+      items: ((j['items'] as List?) ?? const []).map((e) => PriceEntry.fromJson(Map<String, dynamic>.from(e as Map))).toList(),
+    );
+  }
 }
 
 class DocLine {
@@ -96,6 +194,9 @@ class Doc {
     this.bought = 0,
     this.accepted = 0,
     double? sum,
+    this.source = 'bozor',
+    this.supplierId,
+    this.supplierName,
   })  : linesCount = linesCount ?? lines.length,
         sum = sum ?? lines.fold(0.0, (a, l) => a + l.total);
 
@@ -103,7 +204,17 @@ class Doc {
   final int? docNo;
   final String date; // YYYY-MM-DD
   final BranchRef branch;
+  /// Hujjatni kim yaratgan (o'sha paytdagi menejer/bozorchi — tarix uchun qoladi).
   final String? createdBy;
+  /// 'bozor' — bozorchi oladi; 'firma' — yetkazuvchi firmaga buyurtma.
+  final String source;
+  final String? supplierId;
+  final String? supplierName;
+
+  bool get isFirma => source == 'firma';
+
+  /// Filialning hozirgi faol menejeri (BranchRef orqali serverdan).
+  String get manager => branch.manager;
   final List<DocLine> lines;
   final int linesCount;
   final int pending;
@@ -136,6 +247,9 @@ class Doc {
         bought: _i(j['bought']) ?? 0,
         accepted: _i(j['accepted']) ?? 0,
         sum: _d(j['sum']),
+        source: (j['kind'] ?? 'bozor').toString(),
+        supplierId: j['supplier_id']?.toString(),
+        supplierName: j['supplier']?.toString(),
       );
 
   /// GET /market/my?date yoki /market/branch?date&restaurant_id — qatorlar bilan.
@@ -153,6 +267,9 @@ class Doc {
       pending: lines.where((l) => l.status == 'pending').length,
       bought: lines.where((l) => l.status == 'bought').length,
       accepted: lines.where((l) => l.status == 'accepted').length,
+      source: (j['kind'] ?? 'bozor').toString(),
+      supplierId: j['supplier_id']?.toString(),
+      supplierName: j['supplier']?.toString(),
     );
   }
 }

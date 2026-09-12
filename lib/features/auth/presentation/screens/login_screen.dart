@@ -122,8 +122,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // BOZOR ilovasi kassir uchun emas — menejer (zakaz/qabul) va bozorchi
       // (olib kelish ro'yxati) uchun. Kassir PIN'i bilan kirsa, sababini
       // aniq aytamiz (avval «smena ochilmagan» deb chalkash xabar chiqardi).
+      // Ruxsat ro'yxati backend `is_market` bilan BIR XIL (market | manager |
+      // admin | owner). Ilgari faqat kassir to'silardi; yangi rollar
+      // (Buyurtmachi `zakazchik`, oshpaz) ilovaga kirib, har so'rovda backend'dan
+      // 403 olardi (pull'dan keyingi moslashtirish, 2026-09-09).
+      const allowed = {'market', 'manager', 'admin', 'owner'};
       final s = ref.read(sessionProvider);
-      if (s != null && s.staff.role == 'cashier') {
+      if (s != null && !allowed.contains(s.staff.role)) {
+        final isCashier = s.staff.role == 'cashier';
         await ref.read(sessionProvider.notifier).logout();
         if (mounted) {
           setState(() => _pin = '');
@@ -133,18 +139,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               backgroundColor: const Color(0xFF1C1D22),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
-              title: const Row(children: [
-                Icon(Icons.info_outline, color: Color(0xFFF5A623), size: 26),
-                SizedBox(width: 10),
+              title: Row(children: [
+                const Icon(Icons.info_outline, color: Color(0xFFF5A623), size: 26),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: Text('Bu ilova kassir uchun emas',
-                      style: TextStyle(color: Colors.white, fontSize: 18)),
+                  child: Text(isCashier ? 'Bu ilova kassir uchun emas' : 'Bu ilova sizning rolingiz uchun emas',
+                      style: const TextStyle(color: Colors.white, fontSize: 18)),
                 ),
               ]),
-              content: const Text(
-                  'AIBA Bozor — menejer va bozorchi uchun.\n'
-                  'Kassir kassa ilovasidan (AIBA POS) foydalanadi.',
-                  style: TextStyle(color: Color(0xFF9AA0A6), height: 1.5)),
+              content: Text(
+                  isCashier
+                      ? 'AIBA Bozor — menejer va bozorchi uchun.\n'
+                        'Kassir kassa ilovasidan (AIBA POS) foydalanadi.'
+                      : 'AIBA Bozor — faqat menejer va bozorchi uchun.\n'
+                        'Sizning rolingiz: ${s.staff.role}. Admin paneldan rolni o\'zgartirish kerak.',
+                  style: const TextStyle(color: Color(0xFF9AA0A6), height: 1.5)),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(dctx).pop(),

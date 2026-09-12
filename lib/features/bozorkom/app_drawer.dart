@@ -23,6 +23,7 @@ class AppDrawer extends ConsumerWidget {
     final s = ref.watch(sessionProvider);
     final light = ref.watch(lightThemeProvider);
     final market = s?.staff.role == 'market';
+    final supplierRole = s?.staff.role == 'supplier';
     final name = s?.staff.name ?? '';
     final initial = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
     final w = MediaQuery.sizeOf(context).width;
@@ -32,44 +33,48 @@ class AppDrawer extends ConsumerWidget {
       width: (w * 0.84).clamp(260.0, 320.0),
       child: SafeArea(
         child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
-            child: Column(children: [
-              Container(
-                width: 84, height: 84,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: c.blue.withValues(alpha: 0.14), border: Border.all(color: c.blue, width: 2)),
-                alignment: Alignment.center,
-                child: Text(initial, style: TextStyle(color: c.blue, fontSize: 34, fontWeight: FontWeight.w800)),
-              ),
-              const SizedBox(height: 12),
-              FitText(name, align: Alignment.center, style: TextStyle(color: c.text, fontSize: 22, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 6),
-              Pill(label: market ? tr('market') : tr('manager'), color: c.blue),
-              const SizedBox(height: 8),
-              Text('ID: ${s?.terminal.id ?? ''}', textAlign: TextAlign.center,
-                  style: TextStyle(color: c.muted, fontSize: 11.5)),
-              const SizedBox(height: 4),
-              Text(market ? tr('common') : (s?.restaurant.name ?? ''), textAlign: TextAlign.center,
-                  maxLines: 2, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: c.blue, fontSize: 14, fontWeight: FontWeight.w600)),
+          // Sarlavha + menyu SCROLL qiladi, «Chiqish» pastda qotirilgan: 320×568 (iPhone SE)
+          // va 360×640 + katta shrift ekranlarda Column toshib ketardi (matritsa testi).
+          Expanded(
+            child: ListView(padding: EdgeInsets.zero, children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
+              child: Column(children: [
+                Container(
+                  width: 84, height: 84,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: c.blue.withValues(alpha: 0.14), border: Border.all(color: c.blue, width: 2)),
+                  alignment: Alignment.center,
+                  child: Text(initial, style: TextStyle(color: c.blue, fontSize: 34, fontWeight: FontWeight.w800)),
+                ),
+                const SizedBox(height: 12),
+                FitText(name, align: Alignment.center, style: TextStyle(color: c.text, fontSize: 22, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                Pill(label: supplierRole ? tr('firma') : market ? tr('market') : tr('manager'), color: c.blue),
+                const SizedBox(height: 8),
+                FitText('ID: ${s?.terminal.id ?? ''}', align: Alignment.center, style: TextStyle(color: c.muted, fontSize: 11.5)),
+                const SizedBox(height: 4),
+                Text(supplierRole ? tr('supplierAccount') : market ? tr('common') : (s?.restaurant.name ?? ''), textAlign: TextAlign.center,
+                    maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: c.blue, fontSize: 14, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+            // OQ / QORA
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              child: Row(children: [
+                Icon(light ? Icons.light_mode_rounded : Icons.dark_mode_rounded, color: c.blue, size: 20),
+                const SizedBox(width: 10),
+                Expanded(child: Text('${tr('switchScreen')} ${light ? tr('themeLight') : tr('themeDark')}', style: TextStyle(color: c.text, fontSize: 15, fontWeight: FontWeight.w700))),
+                Switch(value: light, onChanged: (_) => ref.read(lightThemeProvider.notifier).toggle()),
+              ]),
+            ),
+            const SizedBox(height: 6),
+            Divider(height: 1, color: c.border),
+            _Tile(icon: Icons.language_rounded, label: tr('lang'), onTap: () => _go(context, const LanguageScreen())),
+            _Tile(icon: Icons.settings_ethernet_rounded, label: tr('ipSettings'), onTap: () => _go(context, const IpSettingsScreen())),
+            _Tile(icon: Icons.tune_rounded, label: tr('general'), onTap: () => _go(context, const GeneralSettingsScreen())),
             ]),
           ),
-          // OQ / QORA
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-            child: Row(children: [
-              Icon(light ? Icons.light_mode_rounded : Icons.dark_mode_rounded, color: c.blue, size: 20),
-              const SizedBox(width: 10),
-              Expanded(child: Text(tr('switchScreen'), style: TextStyle(color: c.text, fontSize: 15, fontWeight: FontWeight.w700))),
-              Switch(value: light, onChanged: (_) => ref.read(lightThemeProvider.notifier).toggle()),
-            ]),
-          ),
-          const SizedBox(height: 6),
-          Divider(height: 1, color: c.border),
-          _Tile(icon: Icons.language_rounded, label: tr('lang'), onTap: () => _go(context, const LanguageScreen())),
-          _Tile(icon: Icons.settings_ethernet_rounded, label: tr('ipSettings'), onTap: () => _go(context, const IpSettingsScreen())),
-          _Tile(icon: Icons.tune_rounded, label: tr('general'), onTap: () => _go(context, const GeneralSettingsScreen())),
-          const Spacer(),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             child: Column(children: [
@@ -79,6 +84,23 @@ class AppDrawer extends ConsumerWidget {
                 label: tr('logout'),
                 icon: Icons.logout_rounded,
                 onTap: () async {
+                  // Parol BIR MARTA teriladi — sessiya saqlanadi (firma
+                  // uchun 1 yil). «Chiqish» tasodifan bosilib qayta parol
+                  // so'ralmasligi uchun tasdiq (user 2026-09-12).
+                  final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: c.panel,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      title: Text(tr('logout'), style: TextStyle(color: c.text)),
+                      content: Text(tr('logoutConfirm'), style: TextStyle(color: c.label, fontSize: 15)),
+                      actions: [
+                        GhostBtn(label: tr('cancel'), height: 44, onTap: () => Navigator.of(ctx).pop(false)),
+                        PrimaryBtn(label: tr('logout'), height: 44, color: c.red, onTap: () => Navigator.of(ctx).pop(true)),
+                      ],
+                    ),
+                  );
+                  if (ok != true || !context.mounted) return;
                   Navigator.of(context).pop();
                   await ref.read(sessionProvider.notifier).logout();
                 },

@@ -17,7 +17,7 @@ const kAppVersion = '1.0.1';
 
 PreferredSizeWidget _bar(BuildContext context, String title) => AppBar(
       leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => Navigator.of(context).pop()),
-      title: FitText(title, style: TextStyle(color: bz(context).text, fontSize: 21, fontWeight: FontWeight.w400)),
+      title: BarTitle(title, style: TextStyle(color: bz(context).text, fontSize: 21, fontWeight: FontWeight.w400)),
     );
 
 // ── TIL ─────────────────────────────────────────────────────────────────────
@@ -112,7 +112,7 @@ class _IpSettingsScreenState extends ConsumerState<IpSettingsScreen> {
     return Scaffold(
       backgroundColor: c.bg,
       appBar: _bar(context, tr('ipSettings')),
-      body: ListView(
+      body: ContentWrap(child: ListView(
         padding: EdgeInsets.all(hPad(context)),
         children: [
           AibaCard(
@@ -120,7 +120,7 @@ class _IpSettingsScreenState extends ConsumerState<IpSettingsScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(tr('ipSettings'), style: TextStyle(color: c.text, fontSize: 22, fontWeight: FontWeight.w400)),
               const SizedBox(height: 14),
-              AibaField(controller: _host, label: tr('serverAddr'), prefixIcon: Icons.dns_rounded, onChanged: (_) => setState(() {})),
+              AibaField(controller: _host, label: tr('serverAddr'), hint: tr('serverAddrHint'), prefixIcon: Icons.dns_rounded, onChanged: (_) => setState(() {})),
               const SizedBox(height: 8),
               Text('${tr('entered', {'a': v})} (${_valid ? tr('valid') : tr('invalid')})',
                   style: TextStyle(color: _valid ? c.blue : c.red, fontSize: 13)),
@@ -143,7 +143,7 @@ class _IpSettingsScreenState extends ConsumerState<IpSettingsScreen> {
             ]),
           ),
         ],
-      ),
+      ),)
     );
   }
 }
@@ -160,7 +160,7 @@ class GeneralSettingsScreen extends ConsumerWidget {
     final s = ref.watch(sessionProvider);
     final cfg = ref.watch(appConfigProvider);
     final branches = ref.watch(branchesProvider);
-    final today = prettyDate(DateTime.now().toIso8601String().substring(0, 10));
+    final today = prettyDate(ref.watch(nowProvider).toIso8601String().substring(0, 10));
     final market = s?.staff.role == 'market';
     const langName = {'uz': "O'zbek", 'ru': 'Русский', 'en': 'English'};
 
@@ -169,7 +169,7 @@ class GeneralSettingsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: c.bg,
       appBar: _bar(context, tr('general')),
-      body: ListView(
+      body: ContentWrap(child: ListView(
         padding: EdgeInsets.symmetric(horizontal: hPad(context), vertical: 6),
         children: [
           SectionLabel(tr('deviceInfo')),
@@ -187,28 +187,30 @@ class GeneralSettingsScreen extends ConsumerWidget {
           KV(k: tr('androidApp'), v: kAppVersion),
           KV(k: tr('lang'), v: langName[loc] ?? loc),
           KV(k: tr('theme'), v: light ? tr('themeLight') : tr('themeDark')),
-          KV(k: tr('checkPrint'), v: 'Kuhnya'),
+          KV(k: tr('checkPrint'), v: tr('kitchen')),
           div(),
           SectionLabel(tr('licenseMode')),
           KV(k: tr('license'), v: kLicenseUntil),
           KV(k: tr('dataDate'), v: today),
           div(),
           SectionLabel(tr('recipients')),
-          KV(k: tr('common'), v: 'ID: 0'),
+          // Ilgari «ID: 1, 2, 3…» — ro'yxat indeksi, haqiqiy ID emas (soxta raqam).
+          // Endi filial KODI ko'rsatiladi — bozorchi hujjatda shu kodni ko'radi.
+          KV(k: tr('common'), v: ''),
           branches.when(
             loading: () => Padding(padding: const EdgeInsets.all(12), child: Center(child: CircularProgressIndicator(color: c.blue))),
-            error: (_, _) => KV(k: s?.restaurant.name ?? '—', v: 'ID: 1'),
+            error: (_, _) => KV(k: s?.restaurant.name ?? '—', v: s?.restaurant.code ?? ''),
             data: (list) => Column(children: [
-              for (var i = 0; i < list.length; i++) KV(k: list[i].name, v: 'ID: ${i + 1}'),
-              if (list.isEmpty) KV(k: s?.restaurant.name ?? '—', v: 'ID: 1'),
+              for (final b in list) KV(k: b.name, v: b.code),
+              if (list.isEmpty) KV(k: s?.restaurant.name ?? '—', v: s?.restaurant.code ?? ''),
             ]),
           ),
           div(),
           SectionLabel(tr('suppliers')),
-          KV(k: tr('market'), v: 'ID: 1'),
+          KV(k: tr('market'), v: ''),
           const SizedBox(height: 24),
         ],
-      ),
+      ),)
     );
   }
 }

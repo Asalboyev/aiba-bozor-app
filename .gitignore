@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# UI matritsa skrinshotlari (470 PNG) — QA uchun lokal, commit qilinmaydi
+test/matrix/
+test/failures/

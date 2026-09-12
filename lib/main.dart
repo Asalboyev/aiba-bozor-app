@@ -74,8 +74,8 @@ class _AibaPosAppState extends ConsumerState<AibaPosApp> {
       ref.read(sessionProvider.notifier).logout();
       _messengerKey.currentState?.showSnackBar(
         const SnackBar(
-          content: Text('Sessiya muddati tugadi — qaytadan kiring. '
-              'Saqlangan savdolar login\'dan keyin avtomatik yuboriladi.'),
+          // BOZOR'da «saqlangan savdolar» yo'q — kassa ilovasidan qolgan ibora olib tashlandi.
+          content: Text('Sessiya muddati tugadi — qaytadan kiring.'),
           duration: Duration(seconds: 6),
         ),
       );

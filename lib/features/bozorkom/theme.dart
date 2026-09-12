@@ -92,7 +92,8 @@ class BzColors extends ThemeExtension<BzColors> {
     chip: Color(0xFFE8EDF5),
     text: Color(0xFF0B1220),
     label: Color(0xFF5B6472),
-    muted: Color(0xFF8A94A3),
+    // Oq kartada 3.07:1 edi (WCAG AA 4.5 talab) — sana/«N ta mahsulot» o'qilmasdi.
+    muted: Color(0xFF6B7482),
     blue: Color(0xFF2277EA),
     green: Color(0xFF16A34A),
     red: Color(0xFFDC2626),

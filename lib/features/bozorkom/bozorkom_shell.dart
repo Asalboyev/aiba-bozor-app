@@ -22,7 +22,7 @@ class BozorkomShell extends ConsumerWidget {
       drawer: const AppDrawer(),
       appBar: AppBar(
         centerTitle: false,
-        title: FitText(tr('docsTitle'), style: TextStyle(color: c.text, fontSize: 21, fontWeight: FontWeight.w400)),
+        title: BarTitle(tr('docsTitle'), style: TextStyle(color: c.text, fontSize: 21, fontWeight: FontWeight.w400)),
         actions: [
           IconButton(tooltip: tr('refresh'), icon: const Icon(Icons.refresh_rounded), onPressed: () => ref.invalidate(docsProvider)),
         ],
